@@ -161,7 +161,10 @@ class Node(object):
         nk = data.shape[0]
         log_dk = logaddexp(math.log(crp_alpha) + math.lgamma(nk),
                            node_left.log_dk + node_right.log_dk)
-        log_pi = -math.log(crp_alpha) + math.lgamma(nk) - log_dk
+        log_pi = -math.log1p(math.exp(node_left.log_dk 
+                                      + node_right.log_dk
+                                      - math.log(crp_alpha) 
+                                      - math.lgamma(nk) ))
 
         if log_pi == 0:
             raise RuntimeError('Precision error')
