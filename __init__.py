@@ -3,7 +3,7 @@ Copyright (C) 2015 Baxter Eaves
 License: Do what the fuck you want to public license (WTFPL) V2
 Bayesian hierarchical clustering.
 Heller, K. A., & Ghahramani, Z. (2005). Bayesian Hierarchical Clustering.
-    Neuroscience, 6(section 2), 297–304. doi:10.1145/1102351.1102389
+    Neuroscience, 6(section 2), 297-304. doi:10.1145/1102351.1102389
 """
 import itertools as it
 import numpy as np
@@ -235,34 +235,3 @@ class NormalInverseWishart(CollapsibleDistribution):
 
         return log_z_n - self.log_z - LOG2PI*(n*self.d/2)
 
-
-if __name__ == '__main__':
-    import matplotlib.pyplot as plt
-
-    n_per_cat = 2
-
-    def gen_data(n_per_cat):
-        cov = np.eye(2)*0.2
-        X0 = np.random.multivariate_normal([-2.0, 0.0], cov, n_per_cat)
-        X1 = np.random.multivariate_normal([2.0, 0.0], cov, n_per_cat)
-        X2 = np.random.multivariate_normal([0.0, 1.8], cov, n_per_cat)
-
-        data = np.vstack((X0, X1, X2))
-        return data
-
-    hypers = {
-        'mu_0': np.zeros(2),
-        'nu_0': 3.0,
-        'kappa_0': 1.0,
-        'lambda_0': np.eye(2)
-    }
-    data_model = NormalInverseWishart(**hypers)
-
-    # Sanity check: grab the assignment that has three components and do a
-    # visual verification.
-    data = gen_data(15)
-    asgn, _ = bhc(data, data_model)
-    z = np.array(asgn[-3], dtype=float)
-    plt.figure(tight_layout=True, facecolor='white')
-    plt.scatter(data[:, 0], data[:, 1], c=z, cmap='Set1', s=225)
-    plt.show()
