@@ -5,20 +5,17 @@ Bayesian hierarchical clustering.
 Heller, K. A., & Ghahramani, Z. (2005). Bayesian Hierarchical Clustering.
     Neuroscience, 6(section 2), 297-304. doi:10.1145/1102351.1102389
 """
+from __future__ import print_function, division
 import itertools as it
 import numpy as np
 
 from scipy.special import multigammaln
 from numpy.linalg import slogdet
 from numpy import logaddexp
-from math import pi
-from math import log
-from math import exp
-from math import expm1
-from math import lgamma
+import math
 
-LOG2PI = log(2*pi)
-LOG2 = log(2)
+LOG2PI = math.log(2*math.pi)
+LOG2 = math.log(2)
 
 
 def bhc(data, data_model, crp_alpha=1.0):
@@ -56,6 +53,7 @@ def bhc(data, data_model, crp_alpha=1.0):
     rks = [0]
 
     while n_nodes > 1:
+        print(n_nodes)
         max_rk = float('-Inf')
         merged_node = None
 
@@ -71,7 +69,7 @@ def bhc(data, data_model, crp_alpha=1.0):
 
             numer = log_pi + logp_comb
 
-            neg_pi = log(-expm1(log_pi))
+            neg_pi = math.log(-math.expm1(log_pi))
             denom = logaddexp(numer, neg_pi+logp_left+logp_right)
 
             log_rk = numer-denom
@@ -82,7 +80,7 @@ def bhc(data, data_model, crp_alpha=1.0):
                 merged_right = right_idx
                 merged_left = left_idx
 
-        rks.append(exp(max_rk))
+        rks.append(math.exp(max_rk))
 
         # Merge the highest-scoring pair
         del nodes[merged_right]
@@ -140,7 +138,7 @@ class Node(object):
         self.log_pi = log_pi
 
         if log_dk is None:
-            self.log_dk = log(crp_alpha)
+            self.log_dk = math.log(crp_alpha)
         else:
             self.log_dk = log_dk
 
@@ -161,9 +159,9 @@ class Node(object):
         data = np.vstack((node_left.data, node_right.data))
 
         nk = data.shape[0]
-        log_dk = logaddexp(log(crp_alpha) + lgamma(nk),
+        log_dk = logaddexp(math.log(crp_alpha) + math.lgamma(nk),
                            node_left.log_dk + node_right.log_dk)
-        log_pi = log(crp_alpha) + lgamma(nk) - log_dk
+        log_pi = -math.log(crp_alpha) + math.lgamma(nk) - log_dk
 
         if log_pi == 0:
             raise RuntimeError('Precision error')
@@ -181,10 +179,10 @@ class CollapsibleDistribution(object):
 
 class NormalInverseWishart(CollapsibleDistribution):
     """
-    Multivariate Normal likelihood with multivariate Normal prior on mean and
-    Inverse-Wishart prior on the covariance matrix.
-    All math taken from Kevin Murphy's 2007 technical report, 'Conjugate
-    Bayesian analysis of the Gaussian distribution'.
+    Multivariate Normal likelihood with multivariate Normal prior on 
+    mean and Inverse-Wishart prior on the covariance matrix.
+    All math taken from Kevin Murphy's 2007 technical report, 
+    'Conjugate Bayesian analysis of the Gaussian distribution'.
     """
 
     def __init__(self, **prior_hyperparameters):
@@ -222,8 +220,9 @@ class NormalInverseWishart(CollapsibleDistribution):
     def calc_log_z(_mu, _lambda, _kappa, _nu):
         d = len(_mu)
         sign, detr = slogdet(_lambda)
-        log_z = LOG2*(_nu*d/2.0) + (d/2.0)*log(2*pi/_kappa) +\
-            multigammaln(_nu/2, d) - (_nu/2.0)*detr
+        log_z = (LOG2*(_nu*d/2.0) 
+                 + (d/2.0)*math.log(2*math.pi/_kappa) 
+                 + multigammaln(_nu/2, d) - (_nu/2.0)*detr)
 
         return log_z
 
