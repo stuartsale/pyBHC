@@ -1,9 +1,8 @@
 """
-Copyright (C) 2015 Baxter Eaves
-License: Do what the fuck you want to public license (WTFPL) V2
-Bayesian hierarchical clustering.
-Heller, K. A., & Ghahramani, Z. (2005). Bayesian Hierarchical Clustering.
-    Neuroscience, 6(section 2), 297-304. doi:10.1145/1102351.1102389
+Python Bayesian hierarchical clustering (PyBHC).
+Heller, K. A., & Ghahramani, Z. (2005). Bayesian Hierarchical 
+    Clustering. Neuroscience, 6(section 2), 297-304. 
+    doi:10.1145/1102351.1102389
 """
 from __future__ import print_function, division
 import itertools as it
@@ -23,24 +22,22 @@ def bhc(data, data_model, crp_alpha=1.0):
     Bayesian hierarchical clustering CRP mixture model.
     Notes
     -----
-    The Dirichlet process version of BHC suffers from terrible numerical
-    errors when there are too many data points. 60 is about the limit. One
-    could use arbitrary-precision numbers if one were so inclined.
-    Parameters
+    The cost of BHC scales as O(n^2) and so becomes inpractically 
+    large for datasets of more than a few hundred points.
     ----------
     data : numpy.ndarray (n, d)
-        Array of data where each row is a data point and each column is a
-        dimension.
+        Array of data where each row is a data point and each column 
+        is a dimension.
     data_model : CollapsibleDistribution
-        Provides the approprite ``log_marginal_likelihood`` function for the
-        data.
+        Provides the approprite ``log_marginal_likelihood`` function 
+        for the data.
     crp_alpha : float (0, Inf)
         CRP concentration parameter.
     Returns
     -------
     assignments : list(list(int))
-        list of assignment vectors. assignments[i] is the assignment of data to
-        i+1 clusters.
+        list of assignment vectors. assignments[i] is the assignment 
+        of data to i+1 clusters.
     lml : float
         log marginal likelihood estimate.
     """
@@ -127,9 +124,11 @@ class Node(object):
         crp_alpha : float (0, Inf)
             CRP concentration parameter
         log_dk : float
-            Cached probability variable. Do not define if the node is a leaf.
+            Cached probability variable. Do not define if the node is 
+            a leaf.
         log_pi : float
-            Cached probability variable. Do not define if the node is a leaf.
+            Cached probability variable. Do not define if the node is 
+            a leaf.
         """
         self.data_model = data_model
         self.data = data
@@ -173,7 +172,8 @@ class Node(object):
 
 
 class CollapsibleDistribution(object):
-    """ Abstract base class for a family of conjugate distributions. """
+    """ Abstract base class for a family of conjugate distributions.
+    """
 
     def log_marginal_likelihood(self, X):
         """ Log of the marginal likelihood, P(X|prior).  """
