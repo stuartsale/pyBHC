@@ -6,83 +6,87 @@ from numpy import logaddexp
 import math
 
 
-def bhc(data, data_model, crp_alpha=1.0):
-    """
-    Bayesian hierarchical clustering CRP mixture model.
-    Notes
-    -----
-    The cost of BHC scales as O(n^2) and so becomes inpractically 
-    large for datasets of more than a few hundred points.
-    ----------
-    data : numpy.ndarray (n, d)
-        Array of data where each row is a data point and each column 
-        is a dimension.
-    data_model : CollapsibleDistribution
-        Provides the approprite ``log_marginal_likelihood`` function 
-        for the data.
-    crp_alpha : float (0, Inf)
-        CRP concentration parameter.
-    Returns
-    -------
-    assignments : list(list(int))
-        list of assignment vectors. assignments[i] is the assignment 
-        of data to i+1 clusters.
-    lml : float
-        log marginal likelihood estimate.
-    """
-    # initialize the tree
-    nodes = dict((i, Node(np.array([x]), data_model, crp_alpha))
-                 for i, x in enumerate(data))
-    n_nodes = len(nodes)
-    assignment = [i for i in range(n_nodes)]
-    assignments = [list(assignment)]
-    rks = [0]
+class bhc(object):
 
-    while n_nodes > 1:
-        print(n_nodes)
-        max_rk = float('-Inf')
-        merged_node = None
+    def __init__(self, data, data_model, crp_alpha=1.0):
+        """
+        Bayesian hierarchical clustering CRP mixture model.
+        Notes
+        -----
+        The cost of BHC scales as O(n^2) and so becomes inpractically 
+        large for datasets of more than a few hundred points.
+        ----------
+        data : numpy.ndarray (n, d)
+            Array of data where each row is a data point and each column 
+            is a dimension.
+        data_model : CollapsibleDistribution
+            Provides the approprite ``log_marginal_likelihood`` function 
+            for the data.
+        crp_alpha : float (0, Inf)
+            CRP concentration parameter.
+        Returns
+        -------
+        assignments : list(list(int))
+            list of assignment vectors. assignments[i] is the assignment 
+            of data to i+1 clusters.
+        lml : float
+            log marginal likelihood estimate.
+        """
+        # initialize the tree
+        nodes = dict((i, Node(np.array([x]), data_model, crp_alpha))
+                     for i, x in enumerate(data))
+        n_nodes = len(nodes)
+        assignment = [i for i in range(n_nodes)]
+        self.assignments = [list(assignment)]
+        rks = [0]
 
-        # for each pair of clusters (nodes), compute the merger score.
-        for left_idx, right_idx in it.combinations(nodes.keys(), 2):
-            tmp_node = Node.as_merge(nodes[left_idx], nodes[right_idx])
+        while n_nodes > 1:
+            print(n_nodes)
+            max_rk = float('-Inf')
+            merged_node = None
 
-            logp_left = nodes[left_idx].logp
-            logp_right = nodes[right_idx].logp
-            logp_comb = tmp_node.logp
+            # for each pair of clusters (nodes), compute the merger 
+            # score.
+            for left_idx, right_idx in it.combinations(nodes.keys(),
+                                                       2):
+                tmp_node = Node.as_merge(nodes[left_idx],
+                                         nodes[right_idx])
 
-            log_pi = tmp_node.log_pi
+                logp_left = nodes[left_idx].logp
+                logp_right = nodes[right_idx].logp
+                logp_comb = tmp_node.logp
 
-            numer = log_pi + logp_comb
+                log_pi = tmp_node.log_pi
 
-            neg_pi = math.log(-math.expm1(log_pi))
-            denom = logaddexp(numer, neg_pi+logp_left+logp_right)
+                numer = log_pi + logp_comb
 
-            log_rk = numer-denom
+                neg_pi = math.log(-math.expm1(log_pi))
+                denom = logaddexp(numer, neg_pi+logp_left+logp_right)
 
-            if log_rk > max_rk:
-                max_rk = log_rk
-                merged_node = tmp_node
-                merged_right = right_idx
-                merged_left = left_idx
+                log_rk = numer-denom
 
-        rks.append(math.exp(max_rk))
+                if log_rk > max_rk:
+                    max_rk = log_rk
+                    merged_node = tmp_node
+                    merged_right = right_idx
+                    merged_left = left_idx
 
-        # Merge the highest-scoring pair
-        del nodes[merged_right]
-        nodes[merged_left] = merged_node
+            rks.append(math.exp(max_rk))
 
-        for i, k in enumerate(assignment):
-            if k == merged_right:
-                assignment[i] = merged_left
-        assignments.append(list(assignment))
+            # Merge the highest-scoring pair
+            del nodes[merged_right]
+            nodes[merged_left] = merged_node
 
-        n_nodes -= 1
+            for i, k in enumerate(assignment):
+                if k == merged_right:
+                    assignment[i] = merged_left
+            self.assignments.append(list(assignment))
 
-    # The denominator of log_rk is at the final merge is an estimate of the
-    # marginal likelihood of the data under DPMM
-    lml = denom
-    return assignments, lml
+            n_nodes -= 1
+
+        # The denominator of log_rk is at the final merge is an 
+        # estimate of the marginal likelihood of the data under DPMM
+        self.lml = denom
 
 
 class Node(object):
