@@ -96,7 +96,7 @@ class bhc(object):
 
         # The denominator of log_rk is at the final merge is an 
         # estimate of the marginal likelihood of the data under DPMM
-#        self.lml = denom
+        self.lml = self.root_node.log_marginal_likelihood()
 
     def left_run(self):
         node = self.root_node
@@ -275,3 +275,10 @@ class Node(object):
 
         return cls(data, data_model, crp_alpha, log_dk, log_pi, 
                    log_rk, node_left, node_right, indexes)
+
+    def log_marginal_likelihood(self):
+        numer = self.log_pi + self.logp
+        neg_pi = math.log(-math.expm1(self.log_pi))
+
+        return logaddexp(numer, neg_pi+self.left_child.logp
+                                +self.right_child.logp)
