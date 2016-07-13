@@ -56,7 +56,7 @@ class bhc(object):
         n_nodes = len(nodes)
         assignment = [i for i in range(n_nodes)]
         self.assignments = [list(assignment)]
-        rks = [0]
+        rks = []
 
         while n_nodes > 1:
             print(n_nodes)
@@ -70,21 +70,8 @@ class bhc(object):
                 tmp_node = Node.as_merge(nodes[left_idx],
                                          nodes[right_idx])
 
-                logp_left = nodes[left_idx].logp
-                logp_right = nodes[right_idx].logp
-                logp_comb = tmp_node.logp
-
-                log_pi = tmp_node.log_pi
-
-                numer = log_pi + logp_comb
-
-                neg_pi = math.log(-math.expm1(log_pi))
-                denom = logaddexp(numer, neg_pi+logp_left+logp_right)
-
-                log_rk = numer-denom
-
-                if log_rk > max_rk:
-                    max_rk = log_rk
+                if tmp_node.log_rk > max_rk:
+                    max_rk = tmp_node.log_rk
                     merged_node = tmp_node
                     merged_right = right_idx
                     merged_left = left_idx
@@ -102,12 +89,14 @@ class bhc(object):
 
             n_nodes -= 1
 
+        print(rks)
+
         self.root_node = nodes[0]
         self.assignments = np.array(self.assignments)
 
         # The denominator of log_rk is at the final merge is an 
         # estimate of the marginal likelihood of the data under DPMM
-        self.lml = denom
+#        self.lml = denom
 
     def left_run(self):
         node = self.root_node
@@ -172,11 +161,17 @@ class Node(object):
     data : numpy.ndarrary (n, d)
         The data assigned to the Node. Each row is a datum.
     crp_alpha : float
-        CRP concentration parameter
+        Chinese restaurant process concentration parameter
     log_dk : float
-        Some kind of number for computing probabilities
+        Used in the calculation of the prior probability. Defined in
+        Fig 3 of Heller & Ghahramani (2005).
     log_pi : float
-        For to compute merge probability
+        Prior probability that all associated leaves belong to one
+        cluster.
+    log_rk : float
+        The log-probability of the merge that created the node. For
+        nodes that are leaves (i.e. not created by a merge) this is
+        None.   
     left_child : Node
         The left child of a merge. For nodes that are leaves (i.e.
         the original data points and not made by a merge) this is 
@@ -186,12 +181,13 @@ class Node(object):
         (i.e. the original data points and not made by a merge) 
         this is None.
     index : int
-        The index of the node in some indexing scheme.
+        The indexes of the leaves associated with the node in some 
+        indexing scheme.
     """
 
     def __init__(self, data, data_model, crp_alpha=1.0, log_dk=None,
-                 log_pi=0.0, left_child=None, right_child=None,
-                 indexes=None):
+                 log_pi=0.0, log_rk=None, left_child=None,
+                 right_child=None, indexes=None):
         """
         Parameters
         ----------
@@ -223,6 +219,7 @@ class Node(object):
         self.nk = data.shape[0]
         self.crp_alpha = crp_alpha
         self.log_pi = log_pi
+        self.log_rk = log_rk
 
         self.left_child = left_child
         self.right_child = right_child
@@ -263,8 +260,18 @@ class Node(object):
                                       - math.log(crp_alpha) 
                                       - math.lgamma(nk) ))
 
+        # Calculate log_rk - the log probability of the merge
+
+        logp_comb = data_model.log_marginal_likelihood(data)
+        numer = log_pi + logp_comb
+
+        neg_pi = math.log(-math.expm1(log_pi))
+        denom = logaddexp(numer, neg_pi+node_left.logp+node_right.logp)
+
+        log_rk = numer-denom
+
         if log_pi == 0:
             raise RuntimeError('Precision error')
 
-        return cls(data, data_model, crp_alpha, log_dk, log_pi,
-                   node_left, node_right, indexes)
+        return cls(data, data_model, crp_alpha, log_dk, log_pi, 
+                   log_rk, node_left, node_right, indexes)
