@@ -51,7 +51,7 @@ class bhc(object):
         """
         # initialize the tree
         nodes = dict((i, Node(np.array([x]), data_model, crp_alpha,
-                              index=i))
+                              indexes=i))
                      for i, x in enumerate(data))
         n_nodes = len(nodes)
         assignment = [i for i in range(n_nodes)]
@@ -103,6 +103,7 @@ class bhc(object):
             n_nodes -= 1
 
         self.root_node = nodes[0]
+        self.assignments = np.array(self.assignments)
 
         # The denominator of log_rk is at the final merge is an 
         # estimate of the marginal likelihood of the data under DPMM
@@ -111,16 +112,55 @@ class bhc(object):
     def left_run(self):
         node = self.root_node
         while node.left_child is not None:
-            print(node.index, np.mean(node.data, axis=0), node.data.shape)
+            print(node.indexes, np.mean(node.data, axis=0), node.data.shape)
             node = node.left_child
-        print(node.index, np.mean(node.data, axis=0), node.data.shape)
+        print(node.indexes, np.mean(node.data, axis=0), node.data.shape)
 
     def right_run(self):
         node = self.root_node
         while node.right_child is not None:
-            print(node.index, np.mean(node.data, axis=0), node.data.shape)
+            print(node.indexes, np.mean(node.data, axis=0), node.data.shape)
             node = node.right_child
-        print(node.index, np.mean(node.data, axis=0), node.data.shape)
+        print(node.indexes, np.mean(node.data, axis=0), node.data.shape)
+
+    def find_path(self, index):
+        """ find_path(index)
+
+            Finds the sequence of left and right merges needed to
+            run from the root node to a particular leaf.
+
+            Parameters
+            ----------
+            index : int
+                The index of the leaf for which we want the path 
+                from the root node.
+        """
+        merge_path = []
+        last_leftmost_index = self.assignments[-1][index]
+        last_right_incluster = (self.assignments[-1]
+                                ==last_leftmost_index)
+
+        for it in range(len(self.assignments)-2, -1, -1):
+            new_leftmost_index = self.assignments[it][index]
+
+            if new_leftmost_index!=last_leftmost_index:
+                # True if leaf is on the right hand side of a merge
+                merge_path.append("right")
+                last_leftmost_index = new_leftmost_index
+                last_right_incluster = (self.assignments[it]
+                                        ==new_leftmost_index)
+        
+            else:       # Not in a right hand side of a merge
+
+                new_right_incluster = (self.assignments[it]
+                                        ==last_leftmost_index)
+
+                if (new_right_incluster!=last_right_incluster).any():
+                    # True if leaf is on the left hand side of a merge
+                    merge_path.append("left")
+                    last_right_incluster = new_right_incluster
+
+        return merge_path
 
 
 class Node(object):
@@ -151,7 +191,7 @@ class Node(object):
 
     def __init__(self, data, data_model, crp_alpha=1.0, log_dk=None,
                  log_pi=0.0, left_child=None, right_child=None,
-                 index=None):
+                 indexes=None):
         """
         Parameters
         ----------
@@ -187,7 +227,10 @@ class Node(object):
         self.left_child = left_child
         self.right_child = right_child
 
-        self.index = index
+        if isinstance(indexes, int):
+            self.indexes = [indexes]
+        else:
+            self.indexes = indexes
 
         if log_dk is None:
             self.log_dk = math.log(crp_alpha)
@@ -209,6 +252,8 @@ class Node(object):
         crp_alpha = node_left.crp_alpha
         data_model = node_left.data_model
         data = np.vstack((node_left.data, node_right.data))
+        indexes = node_left.indexes + node_right.indexes
+        indexes.sort()
 
         nk = data.shape[0]
         log_dk = logaddexp(math.log(crp_alpha) + math.lgamma(nk),
@@ -222,4 +267,4 @@ class Node(object):
             raise RuntimeError('Precision error')
 
         return cls(data, data_model, crp_alpha, log_dk, log_pi,
-                   node_left, node_right, node_left.index)
+                   node_left, node_right, indexes)
