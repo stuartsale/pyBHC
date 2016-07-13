@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 import itertools as it
 import numpy as np
+import sys
 
 from numpy import logaddexp
 import math
@@ -41,25 +42,22 @@ class bhc(object):
             function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
-        Returns
-        -------
-        assignments : list(list(int))
-            list of assignment vectors. assignments[i] is the 
-            assignment of data to i+1 clusters.
-        lml : float
-            log marginal likelihood estimate.
         """
         # initialize the tree
         nodes = dict((i, Node(np.array([x]), data_model, crp_alpha,
                               indexes=i))
                      for i, x in enumerate(data))
         n_nodes = len(nodes)
+        start_n_nodes = len(nodes)
         assignment = [i for i in range(n_nodes)]
         self.assignments = [list(assignment)]
         rks = []
 
         while n_nodes > 1:
-            print(n_nodes)
+            sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
+                                                        start_n_nodes))
+            sys.stdout.flush()
+
             max_rk = float('-Inf')
             merged_node = None
 
