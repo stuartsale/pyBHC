@@ -7,33 +7,51 @@ import math
 
 
 class bhc(object):
+    """
+    An instance of Bayesian hierarchical clustering CRP mixture model.
+    Attributes
+    ----------
+    assignments : list(list(int))
+        A list of lists, where each list records the clustering at 
+        each step by giving the index of the leftmost member of the
+        cluster a leaf is traced to.
+    root_node : Node
+        The root node of the clustering tree.
+    lml : float
+        An estimate of the log marginal likelihood of the model 
+        under a DPMM.
+    Notes
+    -----
+    The cost of BHC scales as O(n^2) and so becomes inpractically 
+    large for datasets of more than a few hundred points.
+    """
+
 
     def __init__(self, data, data_model, crp_alpha=1.0):
         """
-        Bayesian hierarchical clustering CRP mixture model.
-        Notes
-        -----
-        The cost of BHC scales as O(n^2) and so becomes inpractically 
-        large for datasets of more than a few hundred points.
+        Init a bhc instance and perform the clustering.
+
+        Parameters
         ----------
         data : numpy.ndarray (n, d)
-            Array of data where each row is a data point and each column 
-            is a dimension.
+            Array of data where each row is a data point and each 
+            column is a dimension.
         data_model : CollapsibleDistribution
-            Provides the approprite ``log_marginal_likelihood`` function 
-            for the data.
+            Provides the approprite ``log_marginal_likelihood`` 
+            function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
         Returns
         -------
         assignments : list(list(int))
-            list of assignment vectors. assignments[i] is the assignment 
-            of data to i+1 clusters.
+            list of assignment vectors. assignments[i] is the 
+            assignment of data to i+1 clusters.
         lml : float
             log marginal likelihood estimate.
         """
         # initialize the tree
-        nodes = dict((i, Node(np.array([x]), data_model, crp_alpha))
+        nodes = dict((i, Node(np.array([x]), data_model, crp_alpha,
+                              index=i))
                      for i, x in enumerate(data))
         n_nodes = len(nodes)
         assignment = [i for i in range(n_nodes)]
@@ -84,9 +102,25 @@ class bhc(object):
 
             n_nodes -= 1
 
+        self.root_node = nodes[0]
+
         # The denominator of log_rk is at the final merge is an 
         # estimate of the marginal likelihood of the data under DPMM
         self.lml = denom
+
+    def left_run(self):
+        node = self.root_node
+        while node.left_child is not None:
+            print(node.index, np.mean(node.data, axis=0), node.data.shape)
+            node = node.left_child
+        print(node.index, np.mean(node.data, axis=0), node.data.shape)
+
+    def right_run(self):
+        node = self.root_node
+        while node.right_child is not None:
+            print(node.index, np.mean(node.data, axis=0), node.data.shape)
+            node = node.right_child
+        print(node.index, np.mean(node.data, axis=0), node.data.shape)
 
 
 class Node(object):
@@ -103,10 +137,21 @@ class Node(object):
         Some kind of number for computing probabilities
     log_pi : float
         For to compute merge probability
+    left_child : Node
+        The left child of a merge. For nodes that are leaves (i.e.
+        the original data points and not made by a merge) this is 
+        None.
+    right_child : Node
+        The right child of a merge. For nodes that are leaves 
+        (i.e. the original data points and not made by a merge) 
+        this is None.
+    index : int
+        The index of the node in some indexing scheme.
     """
 
     def __init__(self, data, data_model, crp_alpha=1.0, log_dk=None,
-                 log_pi=0.0):
+                 log_pi=0.0, left_child=None, right_child=None,
+                 index=None):
         """
         Parameters
         ----------
@@ -122,12 +167,27 @@ class Node(object):
         log_pi : float
             Cached probability variable. Do not define if the node is 
             a leaf.
+        left_child : Node, optional
+            The left child of a merge. For nodes that are leaves (i.e.
+            the original data points and not made by a merge) this is 
+            None.
+        right_child : Node, optional
+            The right child of a merge. For nodes that are leaves 
+            (i.e. the original data points and not made by a merge) 
+            this is None.
+        index : int, optional
+            The index of the node in some indexing scheme.
         """
         self.data_model = data_model
         self.data = data
         self.nk = data.shape[0]
         self.crp_alpha = crp_alpha
         self.log_pi = log_pi
+
+        self.left_child = left_child
+        self.right_child = right_child
+
+        self.index = index
 
         if log_dk is None:
             self.log_dk = math.log(crp_alpha)
@@ -161,4 +221,5 @@ class Node(object):
         if log_pi == 0:
             raise RuntimeError('Precision error')
 
-        return cls(data, data_model, crp_alpha, log_dk, log_pi)
+        return cls(data, data_model, crp_alpha, log_dk, log_pi,
+                   node_left, node_right, node_left.index)
