@@ -164,6 +164,16 @@ class Node(object):
     log_pi : float
         Prior probability that all associated leaves belong to one
         cluster.
+    log_ml : float
+        The log marginal likelihood for the tree of the node and
+        its children. This is given by eqn 2 of Heller & 
+        Ghahrimani (2005). Note that this definition is 
+        recursive.  Do not define if the node is 
+        a leaf.
+    logp : float
+        The log marginal likelihood for the particular cluster
+        represented by the node. Given by eqn 1 of Heller &
+        Ghahramani (2005).
     log_rk : float
         The log-probability of the merge that created the node. For
         nodes that are leaves (i.e. not created by a merge) this is
@@ -182,7 +192,7 @@ class Node(object):
     """
 
     def __init__(self, data, data_model, crp_alpha=1.0, log_dk=None,
-                 log_pi=0.0, log_ml=None, log_rk=None, 
+                 log_pi=0.0, log_ml=None, logp=None, log_rk=None, 
                  left_child=None, right_child=None, indexes=None):
         """
         Parameters
@@ -205,6 +215,10 @@ class Node(object):
             Ghahrimani (2005). Note that this definition is 
             recursive.  Do not define if the node is 
             a leaf.
+        logp : float
+            The log marginal likelihood for the particular cluster
+            represented by the node. Given by eqn 1 of Heller &
+            Ghahramani (2005).
         log_rk : float
             The probability of the merged hypothesis for the node.
             Given by eqn 3 of Heller & Ghahrimani (2005). Do not 
@@ -240,7 +254,11 @@ class Node(object):
         else:
             self.log_dk = log_dk
 
-        self.logp = self.data_model.log_marginal_likelihood(self.data)
+        if logp is None:    # i.e. for a leaf
+            self.logp = self.data_model.\
+                            log_marginal_likelihood(self.data)
+        else:
+            self.logp = logp
 
         if log_ml is None:  # i.e. for a leaf
             self.log_ml = self.logp
@@ -273,8 +291,8 @@ class Node(object):
 
         # Calculate log_rk - the log probability of the merge
 
-        logp_comb = data_model.log_marginal_likelihood(data)
-        numer = log_pi + logp_comb
+        logp = data_model.log_marginal_likelihood(data)
+        numer = log_pi + logp
 
         neg_pi = math.log(-math.expm1(log_pi))
         log_ml = logaddexp(numer, neg_pi+node_left.log_ml
@@ -286,5 +304,6 @@ class Node(object):
             raise RuntimeError('Precision error')
 
         return cls(data, data_model, crp_alpha, log_dk, log_pi, 
-                   log_ml, log_rk, node_left, node_right, indexes)
+                   log_ml, logp, log_rk, node_left, node_right,
+                   indexes)
 
