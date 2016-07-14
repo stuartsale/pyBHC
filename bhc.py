@@ -87,14 +87,12 @@ class bhc(object):
 
             n_nodes -= 1
 
-        print(rks)
-
         self.root_node = nodes[0]
         self.assignments = np.array(self.assignments)
 
         # The denominator of log_rk is at the final merge is an 
         # estimate of the marginal likelihood of the data under DPMM
-        self.lml = self.root_node.log_marginal_likelihood()
+        self.lml = self.root_node.log_ml
 
     def left_run(self):
         node = self.root_node
@@ -184,8 +182,8 @@ class Node(object):
     """
 
     def __init__(self, data, data_model, crp_alpha=1.0, log_dk=None,
-                 log_pi=0.0, log_rk=None, left_child=None,
-                 right_child=None, indexes=None):
+                 log_pi=0.0, log_ml=None, log_rk=None, 
+                 left_child=None, right_child=None, indexes=None):
         """
         Parameters
         ----------
@@ -201,6 +199,16 @@ class Node(object):
         log_pi : float
             Cached probability variable. Do not define if the node is 
             a leaf.
+        log_ml : float
+            The log marginal likelihood for the tree of the node and
+            its children. This is given by eqn 2 of Heller & 
+            Ghahrimani (2005). Note that this definition is 
+            recursive.  Do not define if the node is 
+            a leaf.
+        log_rk : float
+            The probability of the merged hypothesis for the node.
+            Given by eqn 3 of Heller & Ghahrimani (2005). Do not 
+            define if the node is a leaf.
         left_child : Node, optional
             The left child of a merge. For nodes that are leaves (i.e.
             the original data points and not made by a merge) this is 
@@ -234,6 +242,11 @@ class Node(object):
 
         self.logp = self.data_model.log_marginal_likelihood(self.data)
 
+        if log_ml is None:  # i.e. for a leaf
+            self.log_ml = self.logp
+        else:
+            self.log_ml = log_ml
+
     @classmethod
     def as_merge(cls, node_left, node_right):
         """ Create a node from two other nodes
@@ -264,19 +277,14 @@ class Node(object):
         numer = log_pi + logp_comb
 
         neg_pi = math.log(-math.expm1(log_pi))
-        denom = logaddexp(numer, neg_pi+node_left.logp+node_right.logp)
+        log_ml = logaddexp(numer, neg_pi+node_left.log_ml
+                                  +node_right.log_ml)
 
-        log_rk = numer-denom
+        log_rk = numer-log_ml
 
         if log_pi == 0:
             raise RuntimeError('Precision error')
 
         return cls(data, data_model, crp_alpha, log_dk, log_pi, 
-                   log_rk, node_left, node_right, indexes)
+                   log_ml, log_rk, node_left, node_right, indexes)
 
-    def log_marginal_likelihood(self):
-        numer = self.log_pi + self.logp
-        neg_pi = math.log(-math.expm1(self.log_pi))
-
-        return logaddexp(numer, neg_pi+self.left_child.logp
-                                +self.right_child.logp)
