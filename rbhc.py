@@ -47,13 +47,15 @@ class rbhc(object):
 
         # initialize the tree
 
-        self.assignments = [np.zeros(data.size)]
+        self.assignments = []
 
         root_node = rbhc_Node(data, data_model, crp_alpha)
         self.nodes[0] = {0:root_node}
 
 #        self.tree = rbhc_Node.recursive_split(root_node, 50)
         self.recursive_split(root_node)
+
+        self.find_assignments()
 
 
 
@@ -76,8 +78,37 @@ class rbhc(object):
 
         else:               # terminate
             print("reached the leaves")
-        
 
+
+    def find_assignments(self):
+        """ find_assignements()
+
+            Find which Node each data point is assigned to on each
+            level.
+            This fills self.assignemnts - which is a list, with an
+            ndarray for each level. The array for each level gives
+            the level index of the nde it is associated with.
+            If a data point is not assigned to a node on a given
+            level it is given the value -1.
+        """
+
+        self.assignments.append(np.zeros(self.data.shape[0]))
+
+        for level_key in self.nodes:
+            if level_key!=0:
+                self.assignments.append(
+                            np.zeros(self.data.shape[0])-1)
+
+                for index_key in self.nodes[level_key]:
+                    if index_key%2==0:
+                        parent_index = int(index_key/2)
+                        write_indexes = (self.assignments[level_key-1]
+                                          ==parent_index)
+
+                        self.assignments[level_key][write_indexes] = (
+                              parent_index*2+1-
+                              self.nodes[level_key-1][parent_index].\
+                              left_allocate.astype(int)  )
 
 
 
@@ -106,6 +137,9 @@ class rbhc_Node(object):
             increases down the tree.
         level_index : int, optional
             An index that identifies each node within a level.
+        left_allocate : ndarray(bool)
+            An array that records if a datum has been allocated 
+            to the left child (True) or the right(False).
     """
     def __init__(self, data, data_model, crp_alpha=1.0, prev_wk=1.,
                  node_level=0, level_index=0):
@@ -192,6 +226,9 @@ class rbhc_Node(object):
                 A clustering of the data, either onto two child
                 rbhc_Nodes or as a full bhc tree of all the data 
                 within parent_node.
+            left_allocate : ndarray(bool)
+                An array that records if a datum has been allocated 
+                to the left child (True) or the right(False).
         """
 
         print("\n", parent_node.node_level, parent_node.level_index, parent_node.nk)
@@ -262,10 +299,17 @@ class rbhc_Node(object):
             Filter the data in a rbhc_node onto the two Nodes at the
             second from top layer of a bhc tree.
         """
-            
-
+        # set up data arrays with points from sub_bhc
         self.left_data = self.sub_bhc.root_node.left_child.data
         self.right_data = self.sub_bhc.root_node.right_child.data
+
+        # get assignemnt for sub_bhc objects
+        self.left_allocate = np.zeros(self.nk, dtype=bool)
+
+        for it in np.arange(self.sub_indexes.size):
+            self.left_allocate[self.sub_indexes[it]] = (
+                                self.sub_bhc.assignments[-2][it]==0)
+
 
         # get non-subset data indices
 
@@ -277,20 +321,25 @@ class rbhc_Node(object):
 
         for ind in notsub_indexes:
             left_prob = (self.sub_bhc.root_node.left_child.log_pi
-                         + self.data_model.log_marginal_likelihood(
-                            np.vstack((self.left_data, 
-                                            self.data[ind])) ))
+                         +self.data_model.log_marginal_likelihood(
+                           np.vstack((
+                                self.sub_bhc.root_node.left_child.data, 
+                                self.data[ind])) ))
             right_prob = (self.sub_bhc.root_node.right_child.log_pi
-                         + self.data_model.log_marginal_likelihood(
-                            np.vstack((self.right_data, 
-                                            self.data[ind])) ))
+                         +self.data_model.log_marginal_likelihood(
+                           np.vstack((
+                                self.sub_bhc.root_node.right_child.data, 
+                                self.data[ind])) ))
 
             if left_prob>=right_prob:
                 # possibly change this to make tupe and vstack at 
                 # end if cost is high
+                self.left_allocate[ind] = True
                 self.left_data = np.vstack((self.left_data, 
                                             self.data[ind]))
             else:
                 self.right_data = np.vstack((self.right_data, 
                                              self.data[ind]))
+
+#        print(self.left_allocate)
         
