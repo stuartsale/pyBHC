@@ -90,8 +90,15 @@ class rbhc_Node(object):
             The product of the (1-r_k) factors for the nodes leading 
             to this node from (and including) the root node. Used in 
             eqn 9 of Heller & ghahramani (2005a).
+        node_level : int, optional
+            The level in the hierarchy at which the node is found.
+            The root node lives in level 0 and the level number
+            increases down the tree.
+        level_index : int, optional
+            An index that identifies each node within a level.
     """
-    def __init__(self, data, data_model, crp_alpha=1.0, prev_wk=1.):
+    def __init__(self, data, data_model, crp_alpha=1.0, prev_wk=1.,
+                 node_level=0, level_index=0):
         """ __init__(data, data_model, crp_alpha=1.0)
 
             Initialise a rBHC node.
@@ -104,12 +111,25 @@ class rbhc_Node(object):
                 The data model used to calcuate marginal likelihoods
             crp_alpha : float, optional
                 Chinese restaurant process concentration parameter
+            prev_wk : float
+                The product of the (1-r_k) factors for the nodes 
+                leading to this node from (and including) the root 
+                node. Used in eqn 9 of Heller & ghahramani (2005a).
+            node_level : int, optional
+                The level in the hierarchy at which the node is found.
+                The root node lives in level 0 and the level number
+                increases down the tree.
+            level_index : int, optional
+                An index that identifies each node within a level.
+
         """
 
         self.data = data
         self.data_model = data_model
         self.crp_alpha = crp_alpha
         self.prev_wk = prev_wk
+        self.node_level = node_level
+        self.level_index = level_index
 
         self.nk = data.shape[0]
 
@@ -164,7 +184,7 @@ class rbhc_Node(object):
                 within parent_node.
         """
 
-        print(parent_node.nk)
+        print("\n", parent_node.node_level, parent_node.level_index, parent_node.nk)
 
         if parent_node.nk>sub_size:    # do rBHC filter
             # make subsample tree
@@ -180,13 +200,16 @@ class rbhc_Node(object):
 
             child_prev_wk = (parent_node.prev_wk
                              *(1-math.exp(parent_node.log_rk)))
+            child_level = parent_node.node_level+1
 
             left_child = cls(parent_node.left_data,
                              parent_node.data_model, 
-                             parent_node.crp_alpha, child_prev_wk)
+                             parent_node.crp_alpha, child_prev_wk,
+                             child_level, parent_node.level_index*2)
             right_child = cls(parent_node.right_data,
                              parent_node.data_model, 
-                             parent_node.crp_alpha, child_prev_wk)
+                             parent_node.crp_alpha, child_prev_wk,
+                             child_level, parent_node.level_index*2+1)
             rBHC_split = True
             children = [left_child, right_child]
 
