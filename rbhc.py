@@ -83,8 +83,15 @@ class rbhc_Node(object):
             The data model used to calcuate marginal likelihoods
         crp_alpha : float
             Chinese restaurant process concentration parameter
+        log_rk : float
+            The probability of the merged hypothesis for the node.
+            Given by eqn 3 of Heller & Ghahrimani (2005).
+        prev_wk : float
+            The product of the (1-r_k) factors for the nodes leading 
+            to this node from (and including) the root node. Used in 
+            eqn 9 of Heller & ghahramani (2005a).
     """
-    def __init__(self, data, data_model, crp_alpha=1.0):
+    def __init__(self, data, data_model, crp_alpha=1.0, prev_wk=1.):
         """ __init__(data, data_model, crp_alpha=1.0)
 
             Initialise a rBHC node.
@@ -102,6 +109,7 @@ class rbhc_Node(object):
         self.data = data
         self.data_model = data_model
         self.crp_alpha = crp_alpha
+        self.prev_wk = prev_wk
 
         self.nk = data.shape[0]
 
@@ -162,17 +170,23 @@ class rbhc_Node(object):
             # make subsample tree
             parent_node.subsample_bhc(sub_size)
 
+            # set log_rk from the estimate given by self.sub_bhc
+            parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
+
             # filter data through top level of subsample_bhc
             parent_node.filter_data()
 
             # create new nodes
 
+            child_prev_wk = (parent_node.prev_wk
+                             *(1-math.exp(parent_node.log_rk)))
+
             left_child = cls(parent_node.left_data,
                              parent_node.data_model, 
-                             parent_node.crp_alpha)
+                             parent_node.crp_alpha, child_prev_wk)
             right_child = cls(parent_node.right_data,
                              parent_node.data_model, 
-                             parent_node.crp_alpha)
+                             parent_node.crp_alpha, child_prev_wk)
             rBHC_split = True
             children = [left_child, right_child]
 
@@ -182,6 +196,8 @@ class rbhc_Node(object):
                            parent_node.data_model, 
                            parent_node.crp_alpha)
             rBHC_split = False
+
+            parent_node.set_rk(children.root_node.log_rk)
 
         return (rBHC_split, children)
         
