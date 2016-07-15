@@ -18,7 +18,7 @@ class rbhc(object):
     for large data sets.
     """
 
-    def __init__(self, data, data_model, crp_alpha=1.0):
+    def __init__(self, data, data_model, crp_alpha=1.0, sub_size=50):
 
         """
         Init a rbhc instance and perform the clustering.
@@ -33,7 +33,16 @@ class rbhc(object):
             function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
+        sub_size : int
+            The size of the random subset of pooints used to form the
+            tree whose top split is employed to filter the data.
+            Denoted m in the Heller & Ghahramani (2005).
         """        
+        self.data = data
+        self.data_model = data_model
+        self.crp_alpha = crp_alpha
+        self.sub_size = sub_size
+
         # initialize the tree
 
         self.assignments = [np.zeros(data.size)]
@@ -41,14 +50,30 @@ class rbhc(object):
 #        self.nodes = []
         root_node = rbhc_Node(data, data_model, crp_alpha)
 
-        self.tree = rbhc_Node.recursive_split(root_node, 50)
+#        self.tree = rbhc_Node.recursive_split(root_node, 50)
+        self.recursive_split(root_node)
+
+
+
+    def recursive_split(self, parent_node):
+
+        rBHC_split, children = rbhc_Node.as_split(parent_node,
+                                                  self.sub_size)
+
+        if rBHC_split:      # continue recussing down
+           self.recursive_split(children[0])
+           self.recursive_split(children[1])
+
+        else:               # terminate
+            print("reached the leaves")
+        
 
 
 
 
 class rbhc_Node(object):
 
-    def __init__(self, data, data_model, crp_alpha=1.0, parent=None):
+    def __init__(self, data, data_model, crp_alpha=1.0):
 
         self.data = data
         self.data_model = data_model
@@ -56,8 +81,12 @@ class rbhc_Node(object):
 
         self.nk = data.shape[0]
 
+
+    def set_rk(self, log_rk):
+        self.log_rk = log_rk
+
     @classmethod
-    def recursive_split(cls, parent_node, sub_size):
+    def as_split(cls, parent_node, sub_size):
 
         print(parent_node.nk)
 
@@ -72,23 +101,21 @@ class rbhc_Node(object):
 
             left_child = cls(parent_node.left_data,
                              parent_node.data_model, 
-                             parent_node.crp_alpha,
-                             parent_node)
+                             parent_node.crp_alpha)
             right_child = cls(parent_node.right_data,
                              parent_node.data_model, 
-                             parent_node.crp_alpha,
-                             parent_node)
+                             parent_node.crp_alpha)
+            rBHC_split = True
+            children = [left_child, right_child]
 
-            # recurse down
-
-            rbhc_Node.recursive_split(left_child, sub_size)
-            rbhc_Node.recursive_split(right_child, sub_size)
-            
-        
+       
         else:               # just use the bhc tree
-            parent_node.final_tree = bhc(parent_node.data, 
-                                         parent_node.data_model, 
-                                         parent_node.crp_alpha)
+            children = bhc(parent_node.data, 
+                           parent_node.data_model, 
+                           parent_node.crp_alpha)
+            rBHC_split = False
+
+        return (rBHC_split, children)
         
 
 
