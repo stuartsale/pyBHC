@@ -156,6 +156,8 @@ class Node(object):
         Number of data points assigned to the node
     data : numpy.ndarrary (n, d)
         The data assigned to the Node. Each row is a datum.
+    data_model : idsteach.CollapsibleDistribution
+        The data model used to calcuate marginal likelihoods
     crp_alpha : float
         Chinese restaurant process concentration parameter
     log_dk : float
@@ -200,7 +202,7 @@ class Node(object):
         data : numpy.ndarray
             Array of data_model-appropriate data
         data_model : idsteach.CollapsibleDistribution
-            For to calculate marginal likelihoods
+            The data model used to calcuate marginal likelihoods
         crp_alpha : float (0, Inf)
             CRP concentration parameter
         log_dk : float
