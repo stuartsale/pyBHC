@@ -43,12 +43,14 @@ class rbhc(object):
         self.crp_alpha = crp_alpha
         self.sub_size = sub_size
 
+        self.nodes = {}
+
         # initialize the tree
 
         self.assignments = [np.zeros(data.size)]
 
-#        self.nodes = []
         root_node = rbhc_Node(data, data_model, crp_alpha)
+        self.nodes[0] = {0:root_node}
 
 #        self.tree = rbhc_Node.recursive_split(root_node, 50)
         self.recursive_split(root_node)
@@ -61,8 +63,16 @@ class rbhc(object):
                                                   self.sub_size)
 
         if rBHC_split:      # continue recussing down
-           self.recursive_split(children[0])
-           self.recursive_split(children[1])
+            if children[0].node_level not in self.nodes:
+                self.nodes[children[0].node_level] = {}
+
+            self.nodes[children[0].node_level]\
+                      [children[0].level_index] = children[0]
+            self.nodes[children[1].node_level]\
+                      [children[1].level_index] = children[1]
+
+            self.recursive_split(children[0])
+            self.recursive_split(children[1])
 
         else:               # terminate
             print("reached the leaves")
