@@ -77,7 +77,10 @@ class rbhc(object):
             self.recursive_split(children[1])
 
         else:               # terminate
-            print("reached the leaves")
+            if parent_node.tree_terminated:
+                print("reached the leaves")
+            elif parent_node.truncation_terminated:
+                print("truncated")
 
 
     def find_assignments(self):
@@ -177,6 +180,11 @@ class rbhc_Node(object):
 
         self.nk = data.shape[0]
 
+        self.log_rk = 0
+
+        self.tree_terminated = False
+        self.truncation_terminated = False
+
 
     def set_rk(self, log_rk):
         """ set_rk(log_rk)
@@ -231,43 +239,79 @@ class rbhc_Node(object):
                 to the left child (True) or the right(False).
         """
 
-        print("\n", parent_node.node_level, parent_node.level_index, parent_node.nk)
-
-        if parent_node.nk>sub_size:    # do rBHC filter
-            # make subsample tree
-            parent_node.subsample_bhc(sub_size)
-
-            # set log_rk from the estimate given by self.sub_bhc
-            parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
-
-            # filter data through top level of subsample_bhc
-            parent_node.filter_data()
-
-            # create new nodes
-
-            child_prev_wk = (parent_node.prev_wk
-                             *(1-math.exp(parent_node.log_rk)))
-            child_level = parent_node.node_level+1
-
-            left_child = cls(parent_node.left_data,
-                             parent_node.data_model, 
-                             parent_node.crp_alpha, child_prev_wk,
-                             child_level, parent_node.level_index*2)
-            right_child = cls(parent_node.right_data,
-                             parent_node.data_model, 
-                             parent_node.crp_alpha, child_prev_wk,
-                             child_level, parent_node.level_index*2+1)
-            rBHC_split = True
-            children = [left_child, right_child]
-
-       
-        else:               # just use the bhc tree
-            children = bhc(parent_node.data, 
-                           parent_node.data_model, 
-                           parent_node.crp_alpha)
+        if (parent_node.prev_wk*parent_node.nk)<1E-3:
+            print("Truncating", parent_node.prev_wk, parent_node.nk,
+                   parent_node.prev_wk*parent_node.nk)
             rBHC_split = False
+            parent_node.truncation_terminated = True
+            children = []
 
-            parent_node.set_rk(children.root_node.log_rk)
+            # make subsample tree
+            if parent_node.nk>sub_size:
+                parent_node.subsample_bhc(sub_size)
+
+                # set log_rk from the estimate given by self.sub_bhc
+                parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
+            elif parent_node.nk>1:
+                bhc_tree = bhc(parent_node.data, 
+                               parent_node.data_model, 
+                               parent_node.crp_alpha)
+                parent_node.set_rk(bhc_tree.root_node.log_rk)
+            else:
+                parent_node.set_rk(0.)
+
+
+        else:
+
+            if parent_node.nk>sub_size:    # do rBHC filter
+                # make subsample tree
+                parent_node.subsample_bhc(sub_size)
+
+                # set log_rk from the estimate given by self.sub_bhc
+                parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
+
+                # filter data through top level of subsample_bhc
+                parent_node.filter_data()
+
+                # create new nodes
+
+                child_prev_wk = (parent_node.prev_wk
+                                 *(1-math.exp(parent_node.log_rk)))
+                child_level = parent_node.node_level+1
+
+                left_child = cls(parent_node.left_data,
+                                 parent_node.data_model, 
+                                 parent_node.crp_alpha, child_prev_wk,
+                                 child_level, 
+                                 parent_node.level_index*2)
+                right_child = cls(parent_node.right_data,
+                                 parent_node.data_model, 
+                                 parent_node.crp_alpha, child_prev_wk,
+                                 child_level,
+                                 parent_node.level_index*2+1)
+                rBHC_split = True
+                children = [left_child, right_child]
+
+           
+            elif parent_node.nk>1:             # just use the bhc tree
+                children = bhc(parent_node.data, 
+                               parent_node.data_model, 
+                               parent_node.crp_alpha)
+                rBHC_split = False
+                parent_node.tree_terminated = True
+
+                parent_node.set_rk(children.root_node.log_rk)
+
+            else:                       # only 1 datum
+                children = []
+                rBHC_split = False
+                parent_node.tree_terminated = True
+
+                parent_node.set_rk(0.)               
+            
+
+        print("\n", parent_node.node_level, parent_node.level_index, parent_node.nk, parent_node.prev_wk,
+               math.exp(parent_node.log_rk), (1-math.exp(parent_node.log_rk)))
 
         return (rBHC_split, children)
         
