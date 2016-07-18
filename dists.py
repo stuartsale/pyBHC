@@ -1,12 +1,13 @@
 from __future__ import print_function, division
 import numpy as np
 
-from scipy.special import multigammaln
+from scipy.special import gammaln, multigammaln
 from numpy.linalg import slogdet
 import math
 
 LOG2PI = math.log(2*math.pi)
 LOG2 = math.log(2)
+LOGPI = math.log(math.pi)
 
 
 class CollapsibleDistribution(object):
@@ -74,6 +75,52 @@ class NormalInverseWishart(CollapsibleDistribution):
         log_z_n = self.calc_log_z(*params_n)
 
         return log_z_n - self.log_z - LOG2PI*(n*self.d/2)
+
+    def log_posterior_predictive(self, X_new, X_old):
+        """ log_posterior_predictive(X_new, X_old)
+
+            Find the posterior predictive probabilitiy p(X_new|X_old)
+            where X_old is some data we already have and X_new is the
+            point at which we want the posterior predictive prob.
+
+            The posterior predictive distribution is a (multivariate) 
+            t-distribution.
+            The formula required is given by 
+            en.wikipedia.org/wiki/Conjugate_prior
+            
+            Parameters
+            ----------
+            X_old : ndarray
+                The existing data on which the posterior predicitve
+                is to be conditioned.
+            X_new : ndarray
+                The point for which we want the posterior predicitve.
+        """
+        params_old = self.update_parameters(X_old, self.mu_0,
+                                            self.lambda_0,
+                                            self.kappa_0, self.nu_0, 
+                                            self.d)
+        t_sigma = ((params_old[2]+1)
+                    /(params_old[2]*(params_old[3]-self.d+1))
+                    *params_old[1])
+        t_sigma_inv = np.linalg.inv(t_sigma)
+        t_dof = params_old[3]-self.d+1
+
+
+        t_z = X_new - params_old[0]
+        t_logdiff = math.log(1+np.sum(t_z*np.dot(t_sigma_inv, t_z))
+                             /t_dof)
+
+        sgn, det = np.linalg.slogdet(t_sigma)
+
+        prob = (gammaln((t_dof+self.d)/2)
+                - gammaln(t_dof/2)
+                - self.d/2*math.log(t_dof)
+                - self.d/2*LOGPI
+                - det/2
+                - (t_dof+self.d)/2*t_logdiff)
+
+        return prob
 
 
 class NormalFixedCovar(CollapsibleDistribution):
@@ -148,3 +195,39 @@ class NormalFixedCovar(CollapsibleDistribution):
         return (log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q
                 - self.S_det*n/2)
 
+
+    def log_posterior_predictive(self, X_new, X_old):
+        """ log_posterior_predictive(X_new, X_old)
+
+            Find the posterior predictive probabilitiy p(X_new|X_old)
+            where X_old is some data we already have and X_new is the
+            point at which we want the posterior predictive prob.
+
+            The posterior predictive distribution is a (multivariate) 
+            t-distribution.
+            The formula required is given by 
+            en.wikipedia.org/wiki/Conjugate_prior
+            
+            Parameters
+            ----------
+            X_old : ndarray
+                The existing data on which the posterior predicitve
+                is to be conditioned.
+            X_new : ndarray
+                The point for which we want the posterior predicitve.
+        """
+        params_old = self.update_parameters(X_old, self.mu_0, 
+                                            self.sigma_0, self.S,
+                                            self.d)
+
+        z_sigma = params_old[1]+self.S
+        z_sigma_inv = np.linalg.inv(z_sigma)
+        diff = X_new-params_old[0]
+
+        z = np.sum(diff*np.dot(z_sigma_inv, diff))
+
+        sgn, det = np.linalg.slogdet(z_sigma)
+
+        prob = (- self.d/2*LOG2PI - det/2 - z/2)
+    
+        return prob

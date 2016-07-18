@@ -321,15 +321,17 @@ class rbhc_Node(object):
 
         for ind in notsub_indexes:
             left_prob = (self.sub_bhc.root_node.left_child.log_pi
-                         +self.data_model.log_marginal_likelihood(
-                           np.vstack((
-                                self.sub_bhc.root_node.left_child.data, 
-                                self.data[ind])) ))
+                         +self.data_model.log_posterior_predictive(
+                            self.data[ind],
+                            self.sub_bhc.root_node.left_child.data))
+ 
             right_prob = (self.sub_bhc.root_node.right_child.log_pi
-                         +self.data_model.log_marginal_likelihood(
-                           np.vstack((
-                                self.sub_bhc.root_node.right_child.data, 
-                                self.data[ind])) ))
+                         +self.data_model.log_posterior_predictive(
+                            self.data[ind],
+                            self.sub_bhc.root_node.right_child.data))
+
+#            print(ind, left_prob, right_prob, self.sub_bhc.root_node.left_child.log_pi, self.sub_bhc.root_node.right_child.log_pi, 
+#                    self.sub_bhc.root_node.left_child.data.shape[0], self.sub_bhc.root_node.right_child.data.shape[0])
 
             if left_prob>=right_prob:
                 # possibly change this to make tupe and vstack at 
@@ -341,5 +343,5 @@ class rbhc_Node(object):
                 self.right_data = np.vstack((self.right_data, 
                                              self.data[ind]))
 
-#        print(self.left_allocate)
+        print("split", np.sum(self.left_allocate), self.left_allocate.size)
         
