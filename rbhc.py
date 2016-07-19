@@ -113,6 +113,78 @@ class rbhc(object):
                               self.nodes[level_key-1][parent_index].\
                               left_allocate.astype(int)  )
 
+    def refine_probs(self):
+        """ refine_probs()
+
+            Improve the estimated probabilities used by working with
+            the full set of data allocated to each node, rather than 
+            just the initial sub-set used to create/split nodes.
+        """
+        # travel up from leaves improving log_rk etc.
+
+        for level_it in range(len(self.assignments)-1, -1, -1):
+#            print(level_it, self.nodes[level_it].keys())
+
+            for node_it in self.nodes[level_it]:
+                node = self.nodes[level_it][node_it]
+
+                if node.tree_terminated:
+                    if node.nk>1:
+                        # log_rk, etc are accurate
+                        node.log_dk = node.true_bhc.root_node.log_dk
+                        node.log_pi = node.true_bhc.root_node.log_pi
+                        node.logp = node.true_bhc.root_node.logp
+                        node.log_ml = node.true_bhc.root_node.log_ml
+                        node.log_rk = node.true_bhc.root_node.log_rk
+                    else:
+                        node.log_dk = self.crp_alpha
+                        node.log_pi = 0.
+                        node.logp = self.data_model.\
+                                    log_marginal_likelihood(node.data)
+                        node.log_ml =  node.logp
+                        node.log_rk = 0.
+
+                else:
+                    left_child = self.nodes[level_it+1][node_it*2]
+                    right_child = self.nodes[level_it+1][node_it*2+1]
+
+                    node.log_dk = np.logaddexp(
+                           math.log(self.crp_alpha) 
+                           + math.lgamma(node.nk),
+                           left_child.log_dk + right_child.log_dk)
+
+                    node.log_pi = -math.log1p(math.exp(
+                                           left_child.log_dk 
+                                         + right_child.log_dk
+                                         - math.log(self.crp_alpha) 
+                                         - math.lgamma(node.nk) ))
+                    neg_pi = math.log(-math.expm1(node.log_pi))
+
+                    node.logp = self.data_model.\
+                                    log_marginal_likelihood(node.data)
+
+                    node.log_ml = np.logaddexp(node.log_pi+node.logp,
+                                               neg_pi
+                                               +left_child.log_ml
+                                               +right_child.log_ml)
+                    node.log_rk = (node.log_pi + node.logp 
+                                    - node.log_ml)
+
+
+
+        # travel down from top improving 
+
+        for level_it in range(1,len(self.assignments)):
+            for node_it in self.nodes[level_it]:
+                node = self.nodes[level_it][node_it]
+                parent_node = self.nodes[level_it-1][int(node_it/2)]
+
+                node.prev_wk = (parent_node.prev_wk
+                                * (1-math.exp(parent_node.log_rk)))
+
+            
+
+
 
 
 class rbhc_Node(object):
@@ -143,6 +215,22 @@ class rbhc_Node(object):
         left_allocate : ndarray(bool)
             An array that records if a datum has been allocated 
             to the left child (True) or the right(False).
+        log_dk : float
+            Cached probability variable. Do not define if the node is 
+            a leaf.
+        log_pi : float
+            Cached probability variable. Do not define if the node is 
+            a leaf.
+        log_ml : float
+            The log marginal likelihood for the tree of the node and
+            its children. This is given by eqn 2 of Heller & 
+            Ghahrimani (2005). Note that this definition is 
+            recursive.  Do not define if the node is 
+            a leaf.
+        logp : float
+            The log marginal likelihood for the particular cluster
+            represented by the node. Given by eqn 1 of Heller &
+            Ghahramani (2005).
     """
     def __init__(self, data, data_model, crp_alpha=1.0, prev_wk=1.,
                  node_level=0, level_index=0):
@@ -239,7 +327,7 @@ class rbhc_Node(object):
                 to the left child (True) or the right(False).
         """
 
-        if (parent_node.prev_wk*parent_node.nk)<1E-3:
+        if (parent_node.prev_wk*parent_node.nk)<-1E-3:
             print("Truncating", parent_node.prev_wk, parent_node.nk,
                    parent_node.prev_wk*parent_node.nk)
             rBHC_split = False
@@ -257,9 +345,10 @@ class rbhc_Node(object):
                                parent_node.data_model, 
                                parent_node.crp_alpha)
                 parent_node.set_rk(bhc_tree.root_node.log_rk)
+                parent_node.tree_terminated = True
             else:
                 parent_node.set_rk(0.)
-
+                parent_node.tree_terminated = True
 
         else:
 
@@ -294,9 +383,10 @@ class rbhc_Node(object):
 
            
             elif parent_node.nk>1:             # just use the bhc tree
-                children = bhc(parent_node.data, 
-                               parent_node.data_model, 
-                               parent_node.crp_alpha)
+                parent_node.true_bhc = bhc(parent_node.data, 
+                                           parent_node.data_model, 
+                                           parent_node.crp_alpha)
+                children = parent_node.true_bhc
                 rBHC_split = False
                 parent_node.tree_terminated = True
 
