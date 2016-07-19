@@ -56,6 +56,7 @@ class rbhc(object):
         self.recursive_split(root_node)
 
         self.find_assignments()
+        self.refine_probs()
 
 
 
@@ -143,6 +144,15 @@ class rbhc(object):
                                     log_marginal_likelihood(node.data)
                         node.log_ml =  node.logp
                         node.log_rk = 0.
+
+                elif node.truncation_terminated:
+                    node.log_dk = (math.log(self.crp_alpha)
+                                   + math.lgamma(node.nk))
+                    node.log_pi = 0.
+                    node.logp = self.data_model.\
+                                    log_marginal_likelihood(node.data)
+                    node.log_ml = node.logp
+                    node.log_rk = 0.
 
                 else:
                     left_child = self.nodes[level_it+1][node_it*2]
@@ -327,7 +337,7 @@ class rbhc_Node(object):
                 to the left child (True) or the right(False).
         """
 
-        if (parent_node.prev_wk*parent_node.nk)<-1E-3:
+        if (parent_node.prev_wk*parent_node.nk)<1E-3:
             print("Truncating", parent_node.prev_wk, parent_node.nk,
                    parent_node.prev_wk*parent_node.nk)
             rBHC_split = False
