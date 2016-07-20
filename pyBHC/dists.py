@@ -1,10 +1,12 @@
 from __future__ import print_function, division
 import numpy as np
 
-from scipy.special import gammaln, multigammaln
+
 from numpy.linalg import slogdet
 import math
-import scipy
+from scipy import stats
+from scipy.special import gammaln, multigammaln
+
 
 LOG2PI = math.log(2*math.pi)
 LOG2 = math.log(2)
@@ -158,8 +160,8 @@ class NormalInverseWishart(CollapsibleDistribution):
         t_dof = params_n[3] - self.d +1
         t_cov = (params_n[2]+1) / (params_n[2]*t_dof) * params_n[1]
 
-        mvn_rv = scipy.stats.multivariate_normal(cov=t_cov)
-        chi2_rv = scipy.stats.chi2(t_dof)
+        mvn_rv = stats.multivariate_normal(cov=t_cov)
+        chi2_rv = stats.chi2(t_dof)
 
         for it in range(size):
             # Sample u from chi2 dist
@@ -311,7 +313,7 @@ class NormalFixedCovar(CollapsibleDistribution):
             cov = params_n[1]+self.S
 
             # Sample from multivariate Normal
-            output[it,:] = scipy.stats.multivariate_normal.rvs(
+            output[it,:] = stats.multivariate_normal.rvs(
                                 mean=params_n[0], cov=cov)
 
         return output
