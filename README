@@ -1,0 +1,32 @@
+pyBHC - Bayesian Hierarchical clustering in python
+============================================================
+
+Author - Stuart Sale
+
+Intro
+------------
+
+This is python module to perform Bayesian hierarchical clustering 
+in python.
+
+It implements both vanilla BHC, as described in Heller & Ghahramani 
+(2005a), and randomised BHC, which is described in Heller & Ghahramani 
+(2005b).
+
+
+Bibliography
+------------
+
+Heller, K. A., & Ghahramani, Z. (2005a). Bayesian Hierarchical Clustering.
+    Neuroscience, 6(section 2), 297–304. doi:10.1145/1102351.1102389
+
+
+Heller, K. A., & Ghahramani, Z. (2005b) Randomized algorithms for fast Bayesian
+hierarchical clustering. In PASCAL Workshop on Statistics and Optimization of
+Clustering, 2005
+
+Comments
+------------
+More documentation to follow in due course.
+
+
