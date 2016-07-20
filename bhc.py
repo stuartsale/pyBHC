@@ -43,6 +43,10 @@ class bhc(object):
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
         """
+        self.data = data
+        self.data_model = data_model
+        self.crp_alpha = crp_alpha
+
         # initialize the tree
         nodes = dict((i, Node(np.array([x]), data_model, crp_alpha,
                               indexes=i))
@@ -146,6 +150,39 @@ class bhc(object):
                     last_right_incluster = new_right_incluster
 
         return merge_path
+
+    def sample(self, size=1):
+
+        output = np.zeros((size, self.root_node.data.shape[1])) 
+
+        for it in range(size):
+
+            sampled = False
+            node = self.root_node
+
+            while not sampled:
+
+                if node.log_rk is None:     # Node is a leaf
+                    output[it,:] = self.data_model.conditional_sample(
+                                        node.data)
+                    sampled = True                    
+
+                elif np.random.rand()<math.exp(node.log_rk):
+                    # sample from node
+                    output[it,:] = self.data_model.conditional_sample(
+                                        node.data)
+                    sampled = True
+
+                else: # drop to next level
+                    child_ratio = (node.left_child.nk
+                                   /(node.left_child.nk
+                                     +node.right_child.nk))
+                    if np.random.rand()>=child_ratio:
+                        node = node.right_child
+                    else:
+                        node = node.left_child
+
+        return output
 
 
 class Node(object):

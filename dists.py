@@ -4,6 +4,7 @@ import numpy as np
 from scipy.special import gammaln, multigammaln
 from numpy.linalg import slogdet
 import math
+import scipy
 
 LOG2PI = math.log(2*math.pi)
 LOG2 = math.log(2)
@@ -122,6 +123,57 @@ class NormalInverseWishart(CollapsibleDistribution):
 
         return prob
 
+    def conditional_sample(self, X, size=1):
+        """ conditional_sample(X)
+
+            Sample from the posterior predictive distribution
+            conditioned on some data X.
+
+            The posterior predicitve distribution follows a 
+            multivariate t distribution, as per 
+            en.wikipedia.org/wiki/Conjugate_prior . 
+        
+            The multivariate is sampled by performing
+            x = mu + Z sqrt(nu/u) , 
+            where
+            Z ~ N(0, sigma) ,
+            u ~ chi2(nu) ,
+            this implies
+            x ~ t_nu(mu, sigma)            
+
+            Parameters
+            ----------
+            X : ndarray
+                The existing data on which the posterior predicitve
+                is to be conditioned.
+            size : int, optional
+                The number of samples to be drawn.
+        """
+        output = np.zeros((size, self.d))
+
+        params_n = self.update_parameters(X, self.mu_0, self.lambda_0,
+                                          self.kappa_0, self.nu_0, 
+                                          self.d)
+
+        t_dof = params_n[3] - self.d +1
+        t_cov = (params_n[2]+1) / (params_n[2]*t_dof) * params_n[1]
+        print(t_dof, t_cov, params_n[2], params_n[1])
+
+        mvn_rv = scipy.stats.multivariate_normal(cov=t_cov)
+        chi2_rv = scipy.stats.chi2(t_dof)
+
+        for it in range(size):
+            # Sample u from chi2 dist
+            u = chi2_rv.rvs()
+#            print(t_cov*math.sqrt(t_dof/u), t_dof, u)
+
+            # Sample from multivariate Normal
+            z = mvn_rv.rvs()
+            
+            output[it,:] = params_n[0] + z*math.sqrt(t_dof/u)
+
+        return output
+
 
 class NormalFixedCovar(CollapsibleDistribution):
     """
@@ -231,3 +283,37 @@ class NormalFixedCovar(CollapsibleDistribution):
         prob = (- self.d/2*LOG2PI - det/2 - z/2)
     
         return prob
+
+    def conditional_sample(self, X, size=1):
+        """ conditional_sample(X)
+
+            Sample from the posterior predictive distribution
+            conditioned on some data X.
+
+            For the Normal distribution the samples
+            are found by sampling froma (multivariate) Normal.
+
+            Parameters
+            ----------
+            X : ndarray
+                The existing data on which the posterior predicitve
+                is to be conditioned.
+            size : int, optional
+                The number of samples to be drawn.
+        """
+
+        output = np.zeros((size, self.d))
+
+        params_n = self.update_parameters(X, self.mu_0, 
+                                            self.sigma_0, self.S,
+                                            self.d)
+
+        for it in range(size):
+            # get covariance
+            cov = params_n[1]+self.S
+
+            # Sample from multivariate Normal
+            output[it,:] = scipy.stats.multivariate_normal.rvs(
+                                mean=params_n[0], cov=cov)
+
+        return output
