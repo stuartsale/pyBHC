@@ -157,7 +157,6 @@ class NormalInverseWishart(CollapsibleDistribution):
 
         t_dof = params_n[3] - self.d +1
         t_cov = (params_n[2]+1) / (params_n[2]*t_dof) * params_n[1]
-        print(t_dof, t_cov, params_n[2], params_n[1])
 
         mvn_rv = scipy.stats.multivariate_normal(cov=t_cov)
         chi2_rv = scipy.stats.chi2(t_dof)
@@ -165,7 +164,6 @@ class NormalInverseWishart(CollapsibleDistribution):
         for it in range(size):
             # Sample u from chi2 dist
             u = chi2_rv.rvs()
-#            print(t_cov*math.sqrt(t_dof/u), t_dof, u)
 
             # Sample from multivariate Normal
             z = mvn_rv.rvs()

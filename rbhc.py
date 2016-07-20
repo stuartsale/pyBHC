@@ -192,7 +192,60 @@ class rbhc(object):
                 node.prev_wk = (parent_node.prev_wk
                                 * (1-math.exp(parent_node.log_rk)))
 
-            
+    def sample(self, size=1):
+        """ sample(size)
+
+            Sample from a fitted rBHC tree.
+
+            Parameters
+            ----------
+            size : int
+                The number of samples to draw
+        """
+        output = np.zeros((size, self.data.shape[1]))
+
+        for it in range(size):
+
+            sampled = False
+            node = self.nodes[0][0]
+            l_it = 0
+            n_it = 0
+
+            while not sampled:
+
+                if node.tree_terminated:     # tree has BHC child at this node
+                    if node.nk>1:
+                        output[it,:] = node.true_bhc.sample()
+                    else:
+                        output[it,:] = self.data_model.conditional_sample(
+                                            node.data)                         
+                    sampled = True      
+
+                elif node.truncation_terminated:
+                    output[it,:] = self.data_model.conditional_sample(
+                                        node.data)  
+                    sampled = True                  
+
+                elif np.random.rand()<math.exp(node.log_rk):
+                    # sample from node
+                    output[it,:] = self.data_model.conditional_sample(
+                                        node.data)
+                    sampled = True
+
+                else: # drop to next level
+                    child_ratio = (self.nodes[l_it+1][n_it*2].nk
+                                   /(self.nodes[l_it+1][n_it*2].nk
+                                    +self.nodes[l_it+1][n_it*2+1].nk))
+
+                    if np.random.rand()<child_ratio:
+                        l_it += 1
+                        n_it = n_it*2
+                    else:
+                        l_it += 1
+                        n_it = n_it*2+1
+                    node = self.nodes[l_it][n_it]
+
+        return output
 
 
 
@@ -351,10 +404,10 @@ class rbhc_Node(object):
                 # set log_rk from the estimate given by self.sub_bhc
                 parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
             elif parent_node.nk>1:
-                bhc_tree = bhc(parent_node.data, 
-                               parent_node.data_model, 
-                               parent_node.crp_alpha)
-                parent_node.set_rk(bhc_tree.root_node.log_rk)
+                parent_node.true_bhc = bhc(parent_node.data, 
+                                           parent_node.data_model, 
+                                           parent_node.crp_alpha)
+                parent_node.set_rk(parent_node.true_bhc.root_node.log_rk)
                 parent_node.tree_terminated = True
             else:
                 parent_node.set_rk(0.)
