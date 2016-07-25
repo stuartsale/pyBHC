@@ -244,9 +244,7 @@ class NormalFixedCovar(CollapsibleDistribution):
         lml = (log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q
                 - self.S_det*n/2)
 
-        return (log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q
-                - self.S_det*n/2)
-
+        return lml
 
     def log_posterior_predictive(self, X_new, X_old):
         """ log_posterior_predictive(X_new, X_old)

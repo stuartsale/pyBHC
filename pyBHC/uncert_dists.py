@@ -2,7 +2,6 @@ from __future__ import print_function, division
 import numpy as np
 
 
-from numpy.linalg import slogdet
 import math
 from scipy import stats
 from scipy.special import gammaln, multigammaln
@@ -41,18 +40,18 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
     def update_parameters(X, X_uncert, _mu, _sigma, S, _d):
         if X.shape[0]!=X_uncert.shape[0]:
             raise ValueError("The shapes of X and X_uncert do not "
-                             "agree.")
+                             "agree. {0} {1}".format(X.shape, X_uncert.shape))
         n = X.shape[0]
 
         sigma_sum = np.linalg.inv(_sigma)
         mu_sum = np.dot(np.linalg.inv(_sigma), _mu)
 
         for it in range(n):
-            inv_uncert = np.linalg.inv(X_uncert[it,:,;]+S)
+            inv_uncert = np.linalg.inv(X_uncert[it,:,:]+S)
             sigma_sum += inv_uncert
             mu_sum += np.dot(inv_uncert, X[it,:])
 
-        sigma_n = np.linalg.inv(uncert_sum)
+        sigma_n = np.linalg.inv(sigma_sum)
         mu_n = np.dot(sigma_n, mu_sum)
 
         assert(mu_n.shape[0] == _mu.shape[0])
@@ -64,7 +63,7 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
     @staticmethod
     def calc_log_z(_mu, _sigma, S):
         d = len(_mu)
-        sign, detr = slogdet(_sigma)
+        sign, detr = np.linalg.slogdet(_sigma)
         _sigma_inv = np.linalg.inv(_sigma)
 
         log_z = detr/2 + np.sum(_mu*np.dot(_sigma_inv, _mu))
@@ -73,14 +72,15 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
 
     def log_marginal_likelihood(self, X, X_uncert):
         n = X.shape[0]
-        params_n = self.update_parameters(X, self.mu_0, self.sigma_0,
-                                          self.S, self.d)
+        params_n = self.update_parameters(X, X_uncert, self.mu_0,
+                                          self.sigma_0, self.S,
+                                          self.d)
         log_z_n = self.calc_log_z(*params_n)
 
         Q = 0.
         log_det_prod = 0.
         for it in range(n):
-            uncert_inv = np.linalg.inv(X_uncert[it,:,;]+self.S)
+            uncert_inv = np.linalg.inv(X_uncert[it,:,:]+self.S)
             sgn, minus_log_det = np.linalg.slogdet(uncert_inv)
 
             log_det_prod -= minus_log_det
