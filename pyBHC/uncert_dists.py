@@ -40,7 +40,8 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
     def update_parameters(X, X_uncert, _mu, _sigma, S, _d):
         if X.shape[0]!=X_uncert.shape[0]:
             raise ValueError("The shapes of X and X_uncert do not "
-                             "agree. {0} {1}".format(X.shape, X_uncert.shape))
+                             "agree. {0} {1}".format(X.shape,
+                                                     X_uncert.shape))
         n = X.shape[0]
 
         sigma_sum = np.linalg.inv(_sigma)
@@ -59,6 +60,32 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
         assert(sigma_n.shape[1] == _sigma.shape[1])
 
         return mu_n, sigma_n, S
+
+    @staticmethod
+    def update_remove(X, X_uncert, _mu, _sigma, S, _d):
+        if X.shape[0]!=X_uncert.shape[0]:
+            raise ValueError("The shapes of X and X_uncert do not "
+                             "agree. {0} {1}".format(X.shape,
+                                                     X_uncert.shape))
+        n = X.shape[0]
+
+        sigma_sum = np.linalg.inv(_sigma)
+        mu_sum = np.dot(np.linalg.inv(_sigma), _mu)
+
+        for it in range(n):
+            inv_uncert = np.linalg.inv(X_uncert[it,:,:]+S)
+            sigma_sum -= inv_uncert
+            mu_sum -= np.dot(inv_uncert, X[it,:])
+
+        sigma_n = np.linalg.inv(sigma_sum)
+        mu_n = np.dot(sigma_n, mu_sum)
+
+        assert(mu_n.shape[0] == _mu.shape[0])
+        assert(sigma_n.shape[0] == _sigma.shape[0])
+        assert(sigma_n.shape[1] == _sigma.shape[1])
+
+        return mu_n, sigma_n, S       
+
 
     @staticmethod
     def calc_log_z(_mu, _sigma, S):
