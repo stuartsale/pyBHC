@@ -176,7 +176,14 @@ class noisy_rbhc(object):
                                          + right_child.log_dk
                                          - math.log(self.crp_alpha) 
                                          - math.lgamma(node.nk) ))
-                    neg_pi = math.log(-math.expm1(node.log_pi))
+
+                    if node.log_pi==0:
+                        q = (left_child.log_dk + right_child.log_dk
+                             - math.log(self.crp_alpha)
+                             - math.lgamma(node.nk))
+                        neg_pi = q
+                    else:
+                        neg_pi = math.log(-math.expm1(node.log_pi))
 
                     node.logp = self.data_model.\
                                     log_marginal_likelihood(node.data,
