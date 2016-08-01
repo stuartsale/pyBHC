@@ -78,7 +78,7 @@ class noisy_bhc(object):
                 tmp_node = noisy_Node.as_merge(nodes[left_idx],
                                                nodes[right_idx])
 
-                if tmp_node.log_rk > max_rk:
+                if tmp_node.log_rk >= max_rk:
                     max_rk = tmp_node.log_rk
                     merged_node = tmp_node
                     merged_right = right_idx
@@ -143,6 +143,78 @@ class noisy_bhc(object):
 
         return merge_path
 
+    def get_single_posteriors(self):
+        """ get_single_posteriors()
+
+            Find the posteriors for each data point as a Gaussian 
+            mixture, with each component in he mixture corresponding
+            to a node that the data point appears in.
+
+            Returns
+            -------
+        """
+        # travese tree setting params
+
+        self.set_params(self.root_node)
+
+        self.post_GMMs = []
+
+        # get mixture models for each data point
+
+        for it in range(self.data.shape[0]):
+            path = self.find_path(it)
+
+            # w = weights, m = means, c= covaraiances
+            post_GMM = {"w":[], "m":[], "c":[]}
+
+            node = self.root_node
+
+            post_GMM["w"].append(node.prev_wk*math.exp(node.log_rk))
+            mu, sigma = node.data_model.single_posterior(
+                            self.data[it], self.data_uncerts[it],
+                            node.params)
+            post_GMM["m"].append(mu)
+            post_GMM["c"].append(sigma)
+
+            for direction in path:
+                if direction=="left":
+                    node = node.left_child
+                elif direction=="right":
+                    node = node.right_child
+
+                mu, sigma = node.data_model.single_posterior(
+                                self.data[it], self.data_uncerts[it],
+                                node.params)
+            
+                if node.log_rk is not None:
+                    post_GMM["w"].append(node.prev_wk
+                                         *math.exp(node.log_rk))
+                    
+                else:           # a leaf
+                    post_GMM["w"].append(node.prev_wk)
+                post_GMM["m"].append(mu)
+                post_GMM["c"].append(sigma)
+
+            self.post_GMMs.append(post_GMM)
+
+            
+
+        
+
+
+    def set_params(self, node):
+
+        node.get_node_params()
+
+        if node.left_child is not None:
+            child_prev_wk = (node.prev_wk*(1-math.exp(node.log_rk)))
+            node.left_child.prev_wk = child_prev_wk
+            self.set_params(node.left_child)
+        if node.right_child is not None:
+            node.right_child.prev_wk = child_prev_wk
+            self.set_params(node.right_child)
+
+
 class noisy_Node(object):
     """ A node in the hierarchical clustering.
     Attributes
@@ -186,6 +258,10 @@ class noisy_Node(object):
     index : int
         The indexes of the leaves associated with the node in some 
         indexing scheme.
+    prev_wk : float
+        The product of the (1-r_k) factors for the nodes leading 
+        to this node from (and including) the root node. Used in 
+        eqn 9 of Heller & ghahramani (2005a).
     """
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
@@ -265,6 +341,7 @@ class noisy_Node(object):
             self.log_ml = self.logp
         else:
             self.log_ml = log_ml
+        self.prev_wk = 1.
 
     @classmethod
     def as_merge(cls, node_left, node_right):
@@ -310,3 +387,13 @@ class noisy_Node(object):
         return cls(data, data_uncerts, data_model, crp_alpha, log_dk, 
                    log_pi, log_ml, logp, log_rk, node_left,
                    node_right, indexes)
+
+    def get_node_params(self):
+        self.params = self.data_model.update_parameters(
+                                              self.data, 
+                                              self.data_uncerts,
+                                              self.data_model.mu_0,
+                                              self.data_model.sigma_0, 
+                                              self.data_model.S,
+                                              self.data_model.d)
+
