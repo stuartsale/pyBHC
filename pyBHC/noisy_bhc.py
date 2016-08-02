@@ -6,6 +6,8 @@ import sys
 from numpy import logaddexp
 import math
 
+import gmm
+
 class noisy_bhc(object):
     """
     An instance of Bayesian hierarchical clustering CRP mixture model
@@ -164,17 +166,16 @@ class noisy_bhc(object):
         for it in range(self.data.shape[0]):
             path = self.find_path(it)
 
-            # w = weights, m = means, c= covaraiances
-            post_GMM = {"w":[], "m":[], "c":[]}
+            # initialise a GMM
+            post_GMM = gmm.GMM()
 
             node = self.root_node
 
-            post_GMM["w"].append(node.prev_wk*math.exp(node.log_rk))
+            weight = node.prev_wk*math.exp(node.log_rk)
             mu, sigma = node.data_model.single_posterior(
                             self.data[it], self.data_uncerts[it],
                             node.params)
-            post_GMM["m"].append(mu)
-            post_GMM["c"].append(sigma)
+            post_GMM.add_component(weight, mu, sigma)
 
             for direction in path:
                 if direction=="left":
@@ -187,14 +188,14 @@ class noisy_bhc(object):
                                 node.params)
             
                 if node.log_rk is not None:
-                    post_GMM["w"].append(node.prev_wk
-                                         *math.exp(node.log_rk))
-                    
+                    weight = node.prev_wk*math.exp(node.log_rk)
                 else:           # a leaf
-                    post_GMM["w"].append(node.prev_wk)
-                post_GMM["m"].append(mu)
-                post_GMM["c"].append(sigma)
+                    weight = node.prev_wk
 
+                post_GMM.add_component(weight, mu, sigma)
+
+            post_GMM.normalise_weights()
+            post_GMM.set_mean_covar()
             self.post_GMMs.append(post_GMM)
 
             
