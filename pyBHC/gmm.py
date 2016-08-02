@@ -21,18 +21,40 @@ class GMM(object):
             shape (K,N,N)
     """
 
-    def __init__(self):
-        """ __init__()
+    def __init__(self, weights=None, means=None, covars=None):
+        """ __init__(weights=None, means=None, covars=None)
             
-            Initialise a GMM object.
+            Initialise a GMM object. If no weights etc are supplied
+            then an 'empty' mixture is created.
+
+            Parameters
+            ----------
+        weights : list, optional
+            The probability weights for all the components.
+            Should normally sum 
+        means : list(ndarray), optional
+            The N dimesional means for the K components. Will have
+            shape (K,N)
+        covars : list(ndarray), optional
+            The covariance matrices for the K components. Will have
+            shape (K,N,N)
         """
 
-        self.weights = []
-        self.means = []
-        self.covars = []
+        if weights is None or means is None or covars is None:
+            self.weights = []
+            self.means = []
+            self.covars = []
 
-        self.N = None
-        self.K = 0
+            self.N = None
+            self.K = 0
+        
+        else:
+            self.weights = weights
+            self.means = means
+            self.covars = covars
+
+            self.N = self.means[0].shape[0]
+            self.K = len(self.means)
 
     def add_component(self, weight, mean, covar):
         """ add_component(weight, mean, covar)
@@ -101,4 +123,19 @@ class GMM(object):
         self.gmm_covar = gmm_2ndmoment - np.outer(self.gmm_mean,
                                                   self.gmm_mean)
             
-            
+
+    @classmethod
+    def as_merge(cls, gmm_1, gmm_2):
+        """ as_merge(gmm_1, gmm_2)
+        
+            Create a new GMM by merging two existing GMMs
+        """
+
+        weights = gmm_1.weights + gmm_2.weights
+        means = gmm_1.means + gmm_2.means
+        covars = gmm_1.covars + gmm_2.covars
+
+        merged_gmm = cls(weights, means, covars)
+        merged_gmm.normalise_weights()
+        
+        return merged_gmm
