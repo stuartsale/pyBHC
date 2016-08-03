@@ -65,6 +65,9 @@ class noisy_bhc(object):
         self.assignments = [list(assignment)]
         rks = []
 
+        # initialise the posterior GMMs
+        self.post_GMMs = None
+
         while n_nodes > 1:
             sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
                                                         start_n_nodes))
@@ -152,8 +155,6 @@ class noisy_bhc(object):
             mixture, with each component in he mixture corresponding
             to a node that the data point appears in.
 
-            Returns
-            -------
         """
         # travese tree setting params
 

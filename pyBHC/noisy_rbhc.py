@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import math
 import numpy as np
 
+import gmm
 from noisy_bhc import noisy_bhc
 
 class noisy_rbhc(object):
@@ -102,12 +103,12 @@ class noisy_rbhc(object):
             level it is given the value -1.
         """
 
-        self.assignments.append(np.zeros(self.data.shape[0]))
+        self.assignments.append(np.zeros(self.data.shape[0], int))
 
         for level_key in self.nodes:
             if level_key!=0:
                 self.assignments.append(
-                            np.zeros(self.data.shape[0])-1)
+                            np.zeros(self.data.shape[0], int)-1)
 
                 for index_key in self.nodes[level_key]:
                     if index_key%2==0:
@@ -207,6 +208,62 @@ class noisy_rbhc(object):
 
                 node.prev_wk = (parent_node.prev_wk
                                 * (1-math.exp(parent_node.log_rk)))
+
+    def get_single_posteriors(self):
+        """ get_single_posteriors()
+
+            Find the posteriors for each data point as a Gaussian 
+            mixture, with each component in he mixture corresponding
+            to a node that the data point appears in.
+
+        """
+        # travese tree setting params
+
+        self.set_params()
+
+        self.post_GMMs = []
+
+        # get mixture models for each data point
+
+        for datum_it in range(self.data.shape[0]):
+            # initialise a GMM
+            post_GMM = gmm.GMM()
+
+            for level_it in range(len(self.assignments)):
+                node_it = self.assignments[level_it][datum_it]
+
+                if node_it>=0:
+                    node = self.nodes[level_it][node_it]
+
+                    if node.log_rk is not None:
+                        weight = node.prev_wk*math.exp(node.log_rk)
+                    else:       # leaf
+                        weight = node.prev_wk
+                    mu, sigma = node.data_model.single_posterior(
+                                    self.data[datum_it], 
+                                    self.data_uncerts[datum_it],
+                                    node.params)
+
+                    post_GMM.add_component(weight, mu, sigma)
+
+                    if node.tree_terminated:
+                    # deal with bhc tree children
+                        pass
+
+            post_GMM.normalise_weights()
+            post_GMM.set_mean_covar()
+            self.post_GMMs.append(post_GMM)
+
+            
+        
+
+
+    def set_params(self):
+
+        for level_it in self.nodes:
+            for node in self.nodes[level_it].values():
+                node.get_node_params()
+       
 
 
 
@@ -531,4 +588,14 @@ class noisy_rbhc_Node(object):
                                (self.right_data_uncerts,
                                 self.data_uncerts[np.newaxis,ind]))
         print("split", np.sum(self.left_allocate), self.left_allocate.size)
+
+
+    def get_node_params(self):
+        self.params = self.data_model.update_parameters(
+                                              self.data, 
+                                              self.data_uncerts,
+                                              self.data_model.mu_0,
+                                              self.data_model.sigma_0, 
+                                              self.data_model.S,
+                                              self.data_model.d)
         
