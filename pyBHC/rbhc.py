@@ -256,6 +256,8 @@ class rbhc_Node(object):
         ----------
         nk : int
             Number of data points assigned to the node
+        D : int
+            The dimension of the data points
         data : numpy.ndarrary (n, d)
             The data assigned to the Node. Each row is a datum.
         data_model : idsteach.CollapsibleDistribution
@@ -330,6 +332,7 @@ class rbhc_Node(object):
         self.level_index = level_index
 
         self.nk = data.shape[0]
+        self.D = data.shape[1]
 
         self.log_rk = 0
 
@@ -496,49 +499,60 @@ class rbhc_Node(object):
             Filter the data in a rbhc_node onto the two Nodes at the
             second from top layer of a bhc tree.
         """
-        # set up data arrays with points from sub_bhc
-        self.left_data = self.sub_bhc.root_node.left_child.data
-        self.right_data = self.sub_bhc.root_node.right_child.data
+        # set up data arrays 
+        self.left_data = np.empty(shape=(0, self.D))
+        self.right_data = np.empty(shape=(0, self.D))
 
-        # get assignemnt for sub_bhc objects
+        # create assignemnt array
         self.left_allocate = np.zeros(self.nk, dtype=bool)
 
-        for it in np.arange(self.sub_indexes.size):
-            self.left_allocate[self.sub_indexes[it]] = (
-                                self.sub_bhc.assignments[-2][it]==0)
+        # Run through data
 
-
-        # get non-subset data indices
-
-        notsub_indexes = np.setdiff1d(np.arange(self.nk), 
-                                      self.sub_indexes,
-                                      assume_unique=True)
-
-        # Run through non-subset data
-
-        for ind in notsub_indexes:
-            left_prob = (self.sub_bhc.root_node.left_child.log_pi
-                         +self.data_model.log_posterior_predictive(
-                            self.data[ind],
-                            self.sub_bhc.root_node.left_child.data))
- 
-            right_prob = (self.sub_bhc.root_node.right_child.log_pi
-                         +self.data_model.log_posterior_predictive(
-                            self.data[ind],
-                            self.sub_bhc.root_node.right_child.data))
-
-#            print(ind, left_prob, right_prob, self.sub_bhc.root_node.left_child.log_pi, self.sub_bhc.root_node.right_child.log_pi, 
-#                    self.sub_bhc.root_node.left_child.data.shape[0], self.sub_bhc.root_node.right_child.data.shape[0])
-
-            if left_prob>=right_prob:
-                # possibly change this to make tupe and vstack at 
-                # end if cost is high
-                self.left_allocate[ind] = True
-                self.left_data = np.vstack((self.left_data, 
-                                            self.data[ind]))
+        for ind in np.arange(self.nk):
+            
+            # check if in subset
+            if ind in self.sub_indexes:
+                sub_ind = np.argwhere(self.sub_indexes==ind)[0][0]
+                if self.sub_bhc.assignments[-2][sub_ind]==0:
+                    self.left_allocate[ind] = True
+                    self.left_data = np.vstack((self.left_data, 
+                                                self.data[ind]))
+                    self.left_data_uncerts = np.vstack(
+                                   (self.left_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))
+                else: 
+                    self.right_data = np.vstack((self.right_data, 
+                                                 self.data[ind]))
+                    self.right_data_uncerts = np.vstack(
+                                   (self.right_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))                    
+            
+            # non subset data            
             else:
-                self.right_data = np.vstack((self.right_data, 
-                                             self.data[ind]))
+                left_prob = (self.sub_bhc.root_node.left_child.log_pi
+                             +self.data_model.log_posterior_predictive(
+                        self.data[ind],
+                        self.sub_bhc.root_node.left_child.data))
+     
+                right_prob = (self.sub_bhc.root_node.right_child.log_pi
+                             +self.data_model.log_posterior_predictive(
+                        self.data[ind],
+                        self.sub_bhc.root_node.right_child.data))
 
+                if left_prob>=right_prob:
+                    # possibly change this to make tupe and vstack at 
+                    # end if cost is high
+                    self.left_allocate[ind] = True
+                    self.left_data = np.vstack((self.left_data, 
+                                                self.data[ind]))
+                    self.left_data_uncerts = np.vstack(
+                                   (self.left_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))
+                else:
+                    self.right_data = np.vstack((self.right_data, 
+                                                 self.data[ind]))
+                    self.right_data_uncerts = np.vstack(
+                                   (self.right_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))
         print("split", np.sum(self.left_allocate), self.left_allocate.size)
         

@@ -115,6 +115,7 @@ class noisy_rbhc(object):
                         parent_index = int(index_key/2)
                         write_indexes = (self.assignments[level_key-1]
                                           ==parent_index)
+                        print(level_key, index_key, self.nodes[level_key-1][parent_index].left_allocate)
 
                         self.assignments[level_key][write_indexes] = (
                               parent_index*2+1-
@@ -235,6 +236,15 @@ class noisy_rbhc(object):
                 if node_it>=0:
                     node = self.nodes[level_it][node_it]
 
+                    tree_it = np.nonzero(np.equal(
+                                                node.data,
+                                                self.data[datum_it])\
+                                            .all(1))
+                    if len(tree_it[0])>0:
+                        print(datum_it, level_it, node_it, tree_it)
+                    else:
+                        print(datum_it, level_it, node_it, tree_it, self.data[datum_it], node.data)
+
                     if node.log_rk is not None:
                         weight = node.prev_wk*math.exp(node.log_rk)
                     else:       # leaf
@@ -246,9 +256,21 @@ class noisy_rbhc(object):
 
                     post_GMM.add_component(weight, mu, sigma)
 
-                    if node.tree_terminated:
                     # deal with bhc tree children
-                        pass
+                    if node.tree_terminated:
+                        # check if single posteriors need finding 
+                        if node.true_bhc.post_GMMs is None:
+                            node.true_bhc.get_single_posteriors()
+
+                        # find index of datum in this tree
+#                        print(self.data[datum_it], node.true_bhc.data)
+#                        tree_it = np.nonzero(np.equal(
+#                                                node.true_bhc.data,
+#                                                self.data[datum_it])\
+#                                            .all(1))
+#                        print(tree_it)
+
+#                        tree_GMM = node.true_BHC.
 
             post_GMM.normalise_weights()
             post_GMM.set_mean_covar()
@@ -274,6 +296,8 @@ class noisy_rbhc_Node(object):
         ----------
         nk : int
             Number of data points assigned to the node
+        D : int
+            The dimension of the data points
         data : numpy.ndarrary (n, d)
             The data assigned to the Node. Each row is a datum.
         data_uncerts: numpy.ndarray (n, d, d)
@@ -358,6 +382,7 @@ class noisy_rbhc_Node(object):
         self.level_index = level_index
 
         self.nk = data.shape[0]
+        self.D = data.shape[1]
 
         self.log_rk = 0
 
@@ -532,61 +557,67 @@ class noisy_rbhc_Node(object):
             Filter the data in a rbhc_node onto the two Nodes at the
             second from top layer of a bhc tree.
         """
-        # set up data arrays with points from sub_bhc
-        self.left_data = self.sub_bhc.root_node.left_child.data
-        self.right_data = self.sub_bhc.root_node.right_child.data
-        self.left_data_uncerts = (
-                       self.sub_bhc.root_node.left_child.data_uncerts)
-        self.right_data_uncerts = (
-                      self.sub_bhc.root_node.right_child.data_uncerts)
+        # set up data arrays 
+        self.left_data = np.empty(shape=(0, self.D))
+        self.right_data = np.empty(shape=(0, self.D))
+        self.left_data_uncerts = np.empty(shape=(0, self.D, self.D))
+        self.right_data_uncerts = np.empty(shape=(0, self.D, self.D))
 
         # get assignemnt for sub_bhc objects
         self.left_allocate = np.zeros(self.nk, dtype=bool)
 
-        for it in np.arange(self.sub_indexes.size):
-            self.left_allocate[self.sub_indexes[it]] = (
-                                self.sub_bhc.assignments[-2][it]==0)
+        # Run through data
 
-
-        # get non-subset data indices
-
-        notsub_indexes = np.setdiff1d(np.arange(self.nk), 
-                                      self.sub_indexes,
-                                      assume_unique=True)
-
-        # Run through non-subset data
-
-        for ind in notsub_indexes:
-            left_prob = (self.sub_bhc.root_node.left_child.log_pi
-                         +self.data_model.log_posterior_predictive(
+        for ind in np.arange(self.nk):
+            
+            # check if in subset
+            if ind in self.sub_indexes:
+                sub_ind = np.argwhere(self.sub_indexes==ind)[0][0]
+                if self.sub_bhc.assignments[-2][sub_ind]==0:
+                    self.left_allocate[ind] = True
+                    self.left_data = np.vstack((self.left_data, 
+                                                self.data[ind]))
+                    self.left_data_uncerts = np.vstack(
+                                   (self.left_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))
+                else: 
+                    self.right_data = np.vstack((self.right_data, 
+                                                 self.data[ind]))
+                    self.right_data_uncerts = np.vstack(
+                                   (self.right_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))                    
+            
+            # non subset data            
+            else:
+                left_prob = (self.sub_bhc.root_node.left_child.log_pi
+                            +self.data_model.log_posterior_predictive(
                     self.data[ind], self.data_uncerts[ind],
                     self.sub_bhc.root_node.left_child.data,
                     self.sub_bhc.root_node.left_child.data_uncerts))
- 
-            right_prob = (self.sub_bhc.root_node.right_child.log_pi
-                         +self.data_model.log_posterior_predictive(
+     
+                right_prob = (self.sub_bhc.root_node.right_child.log_pi
+                             +self.data_model.log_posterior_predictive(
                     self.data[ind], self.data_uncerts[ind],
                     self.sub_bhc.root_node.right_child.data,
                     self.sub_bhc.root_node.right_child.data_uncerts))
 
-#            print(ind, left_prob, right_prob, self.sub_bhc.root_node.left_child.log_pi, self.sub_bhc.root_node.right_child.log_pi, 
-#                    self.sub_bhc.root_node.left_child.data.shape[0], self.sub_bhc.root_node.right_child.data.shape[0])
 
-            if left_prob>=right_prob:
-                # possibly change this to make tupe and vstack at 
-                # end if cost is high
-                self.left_allocate[ind] = True
-                self.left_data = np.vstack((self.left_data, 
-                                            self.data[ind]))
-                self.left_data_uncerts = np.vstack(
-                               (self.left_data_uncerts,
-                                self.data_uncerts[np.newaxis,ind]))
-            else:
-                self.right_data = np.vstack((self.right_data, 
-                                             self.data[ind]))
-                self.right_data_uncerts = np.vstack(
-                               (self.right_data_uncerts,
-                                self.data_uncerts[np.newaxis,ind]))
+
+                if left_prob>=right_prob:
+                    # possibly change this to make tupe and vstack at 
+                    # end if cost is high
+                    self.left_allocate[ind] = True
+                    self.left_data = np.vstack((self.left_data, 
+                                                self.data[ind]))
+                    self.left_data_uncerts = np.vstack(
+                                   (self.left_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))
+                else:
+                    self.right_data = np.vstack((self.right_data, 
+                                                 self.data[ind]))
+                    self.right_data_uncerts = np.vstack(
+                                   (self.right_data_uncerts,
+                                    self.data_uncerts[np.newaxis,ind]))
         print("split", np.sum(self.left_allocate), self.left_allocate.size)
 
 
