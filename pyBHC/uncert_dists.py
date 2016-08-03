@@ -215,5 +215,5 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
                   +np.dot(np.linalg.inv(datum_uncert), datum))
         mu_post = np.dot(sigma_post, mu_sum)
 
-        return mu_post, sigma_post
+        return mu_post, sigma_post+self.S
 
