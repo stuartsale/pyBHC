@@ -115,7 +115,6 @@ class noisy_rbhc(object):
                         parent_index = int(index_key/2)
                         write_indexes = (self.assignments[level_key-1]
                                           ==parent_index)
-                        print(level_key, index_key, self.nodes[level_key-1][parent_index].left_allocate)
 
                         self.assignments[level_key][write_indexes] = (
                               parent_index*2+1-
@@ -132,7 +131,6 @@ class noisy_rbhc(object):
         # travel up from leaves improving log_rk etc.
 
         for level_it in range(len(self.assignments)-1, -1, -1):
-#            print(level_it, self.nodes[level_it].keys())
 
             for node_it in self.nodes[level_it]:
                 node = self.nodes[level_it][node_it]
@@ -240,10 +238,6 @@ class noisy_rbhc(object):
                                                 node.data,
                                                 self.data[datum_it])\
                                             .all(1))
-                    if len(tree_it[0])>0:
-                        print(datum_it, level_it, node_it, tree_it)
-                    else:
-                        print(datum_it, level_it, node_it, tree_it, self.data[datum_it], node.data)
 
                     if node.log_rk is not None:
                         weight = node.prev_wk*math.exp(node.log_rk)
@@ -257,20 +251,27 @@ class noisy_rbhc(object):
                     post_GMM.add_component(weight, mu, sigma)
 
                     # deal with bhc tree children
-                    if node.tree_terminated:
+                    if node.tree_terminated and node.nk>1:
+
                         # check if single posteriors need finding 
                         if node.true_bhc.post_GMMs is None:
                             node.true_bhc.get_single_posteriors()
 
                         # find index of datum in this tree
-#                        print(self.data[datum_it], node.true_bhc.data)
-#                        tree_it = np.nonzero(np.equal(
-#                                                node.true_bhc.data,
-#                                                self.data[datum_it])\
-#                                            .all(1))
-#                        print(tree_it)
 
-#                        tree_GMM = node.true_BHC.
+                        tree_it = np.nonzero(np.equal(
+                                                node.true_bhc.data,
+                                                self.data[datum_it])\
+                                            .all(1))[0][0]
+                        tree_GMM = node.true_bhc.post_GMMs[tree_it]
+
+                        tree_prev_wk = (node.prev_wk)
+
+                        post_GMM.weights.extend(tree_prev_wk
+                                                *tree_GMM.weights[1:])
+                        post_GMM.means.extend(tree_GMM.means[1:])
+                        post_GMM.covars.extend(tree_GMM.covars[1:])
+
 
             post_GMM.normalise_weights()
             post_GMM.set_mean_covar()
