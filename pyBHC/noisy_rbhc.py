@@ -171,9 +171,6 @@ class noisy_rbhc(object):
                            + math.lgamma(node.nk),
                            left_child.log_dk + right_child.log_dk)
 
-#                    print(left_child.log_dk, right_child.log_dk, math.log(self.crp_alpha), math.lgamma(node.nk), 
-#                          left_child.log_dk + right_child.log_dk - math.log(self.crp_alpha) - math.lgamma(node.nk) )
-
                     exponent = (left_child.log_dk + right_child.log_dk
                                 - math.log(self.crp_alpha) 
                                 - math.lgamma(node.nk))
