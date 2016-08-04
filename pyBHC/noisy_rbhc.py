@@ -208,6 +208,22 @@ class noisy_rbhc(object):
                 node.prev_wk = (parent_node.prev_wk
                                 * (1-math.exp(parent_node.log_rk)))
 
+    def __str__(self):
+        bhc_str = ("==================================\n"
+                   "rBHC fit to {0} (noisy) data points, with "
+                   "alpha={1} and sub_size={2} .\n".format(
+                   self.data.shape[0], self.crp_alpha, self.sub_size))
+
+        for l_it in range(len(self.nodes)):
+            bhc_str += "===== LEVEL {0} =====\n".format(l_it)
+            for n_it in self.nodes[l_it]:
+                node = self.nodes[l_it][n_it]
+                bhc_str += ("node : {0} size : {1} "
+                            "node_prob : {2:.5f} \n".format(
+                                   n_it, node.nk, 
+                                   node.prev_wk*np.exp(node.log_rk)))
+        return bhc_str
+
     def get_single_posteriors(self):
         """ get_single_posteriors()
 
