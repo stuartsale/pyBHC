@@ -171,11 +171,17 @@ class noisy_rbhc(object):
                            + math.lgamma(node.nk),
                            left_child.log_dk + right_child.log_dk)
 
-                    node.log_pi = -math.log1p(math.exp(
-                                           left_child.log_dk 
-                                         + right_child.log_dk
-                                         - math.log(self.crp_alpha) 
-                                         - math.lgamma(node.nk) ))
+#                    print(left_child.log_dk, right_child.log_dk, math.log(self.crp_alpha), math.lgamma(node.nk), 
+#                          left_child.log_dk + right_child.log_dk - math.log(self.crp_alpha) - math.lgamma(node.nk) )
+
+                    exponent = (left_child.log_dk + right_child.log_dk
+                                - math.log(self.crp_alpha) 
+                                - math.lgamma(node.nk))
+                    if exponent<5:
+                        node.log_pi = -math.log1p(math.exp(exponent))
+                    else:
+                       node.log_pi = -exponent
+
 
                     if node.log_pi==0:
                         q = (left_child.log_dk + right_child.log_dk
@@ -287,7 +293,7 @@ class noisy_rbhc(object):
                                                 *tree_GMM.weights[1:])
                         post_GMM.means.extend(tree_GMM.means[1:])
                         post_GMM.covars.extend(tree_GMM.covars[1:])
-
+                        post_GMM.K += tree_GMM.K-1
 
             post_GMM.normalise_weights()
             post_GMM.set_mean_covar()
