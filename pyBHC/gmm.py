@@ -101,6 +101,21 @@ class GMM(object):
         weights_sum = np.sum(self.weights)
         self.weights /= weights_sum
 
+
+    def get_covar_Ls(self):
+        """ get_covar_Ls()
+
+            Find and store the Cholesky decompositions of the
+            covariance matrices.
+        """
+
+        self.covar_Ls = []
+
+        for it in range(self.K):
+            covar_L = np.linalg.cholesky(self.covars[it])
+            self.covar_Ls.append(covar_L)
+
+
     def set_mean_covar(self):
         """ set_mean_covar()
 
@@ -139,3 +154,40 @@ class GMM(object):
         merged_gmm.normalise_weights()
         
         return merged_gmm
+
+    def sample(self, n_samples=1000):
+        """ sample(n_samples=1000)
+
+            Sample from the GMM
+
+            Parameters
+            ----------
+            n_samples : int, optional
+                The number of samples to take
+
+            Returns
+            -------
+            samples : ndarray
+                An array of samples, shape (n_samples, N)
+        """
+        samples = np.zeros((n_samples, self.N))
+
+        # Verify weights sum to 1
+        self.normalise_weights()
+
+        # get cholesky decompositions of covariances
+        self.get_covar_Ls()
+
+        # get sample of component numbers
+        comps = np.random.choice(self.K, size=n_samples,
+                                 p=self.weights)
+
+        for it in range(n_samples):
+
+            # sample within a component
+            samples[it] = (self.means[comps[it]] + 
+                           np.dot(self.covar_Ls[comps[it]], 
+                                  np.random.rand(self.N)))
+
+        return samples
+
