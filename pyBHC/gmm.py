@@ -187,7 +187,7 @@ class GMM(object):
             # sample within a component
             samples[it] = (self.means[comps[it]] + 
                            np.dot(self.covar_Ls[comps[it]], 
-                                  np.random.rand(self.N)))
+                                  np.random.randn(self.N)))
 
         return samples
 
