@@ -71,6 +71,11 @@ class rbhc(object):
         rBHC_split, children = rbhc_Node.as_split(parent_node,
                                                   self.sub_size)
 
+        if self.verbose:
+            print("Parent node [{0}][{1}] ".format(
+                       parent_node.node_level, 
+                       parent_node.level_index), end="")
+
         if rBHC_split:      # continue recussing down
             if children[0].node_level not in self.nodes:
                 self.nodes[children[0].node_level] = {}
@@ -79,13 +84,23 @@ class rbhc(object):
                       [children[0].level_index] = children[0]
             self.nodes[children[1].node_level]\
                       [children[1].level_index] = children[1]
+            
+            if self.verbose:
+                print("split to children:\n"
+                      "\tnode [{0}][{1}], size : {2}\n"
+                      "\tnode [{3}][{4}], size : {5}\n".format(
+                       children[0].node_level, 
+                       children[0].level_index, children[0].nk,
+                       children[1].node_level, 
+                       children[1].level_index, children[1].nk))
 
             self.recursive_split(children[0])
             self.recursive_split(children[1])
 
+
         else:               # terminate
             if parent_node.tree_terminated and self.verbose:
-                print("reached the leaves")
+                print("terminated with bhc tree")
             elif parent_node.truncation_terminated and self.verbose:
                 print("truncated")
 
