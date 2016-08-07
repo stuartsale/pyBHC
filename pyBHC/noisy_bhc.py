@@ -30,7 +30,8 @@ class noisy_bhc(object):
     """
 
 
-    def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0):
+    def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
+                 verbose=False):
         """
         Init a bhc instance and perform the clustering.
 
@@ -48,11 +49,15 @@ class noisy_bhc(object):
             function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
+        verbose : bool, optional
+            Determibes whetrher info gets dumped to stdout.
         """
         self.data = data
         self.data_uncerts = data_uncerts
         self.data_model = data_model
         self.crp_alpha = crp_alpha
+
+        self.verbose = verbose
 
         # initialize the tree
         nodes = dict((i, noisy_Node(np.array([x]), 
@@ -69,9 +74,10 @@ class noisy_bhc(object):
         self.post_GMMs = None
 
         while n_nodes > 1:
-            sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
-                                                        start_n_nodes))
-            sys.stdout.flush()
+            if self.verbose:
+                sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
+                                                       start_n_nodes))
+                sys.stdout.flush()
 
             max_rk = float('-Inf')
             merged_node = None

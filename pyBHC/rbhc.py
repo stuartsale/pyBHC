@@ -18,7 +18,8 @@ class rbhc(object):
     for large data sets.
     """
 
-    def __init__(self, data, data_model, crp_alpha=1.0, sub_size=50):
+    def __init__(self, data, data_model, crp_alpha=1.0, sub_size=50,
+                 verbose=False):
 
         """
         Init a rbhc instance and perform the clustering.
@@ -37,11 +38,16 @@ class rbhc(object):
             The size of the random subset of pooints used to form the
             tree whose top split is employed to filter the data.
             Denoted m in the Heller & Ghahramani (2005b).
+        verbose : bool
+            If true various bits of information, possibly with 
+            diagnostic uses, will be printed.
         """        
         self.data = data
         self.data_model = data_model
         self.crp_alpha = crp_alpha
         self.sub_size = sub_size
+
+        self.verbose = verbose
 
         self.nodes = {}
 
@@ -78,9 +84,9 @@ class rbhc(object):
             self.recursive_split(children[1])
 
         else:               # terminate
-            if parent_node.tree_terminated:
+            if parent_node.tree_terminated and self.verbose:
                 print("reached the leaves")
-            elif parent_node.truncation_terminated:
+            elif parent_node.truncation_terminated and self.verbose:
                 print("truncated")
 
 

@@ -19,7 +19,7 @@ class noisy_rbhc(object):
     """
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
-                 sub_size=50):
+                 sub_size=50, verbose=False):
 
         """
         Init a rbhc instance and perform the clustering.
@@ -42,12 +42,17 @@ class noisy_rbhc(object):
             The size of the random subset of pooints used to form the
             tree whose top split is employed to filter the data.
             Denoted m in the Heller & Ghahramani (2005b).
+        verbose : bool
+            If true various bits of information, possibly with 
+            diagnostic uses, will be printed.
         """        
         self.data = data
         self.data_uncerts = data_uncerts
         self.data_model = data_model
         self.crp_alpha = crp_alpha
         self.sub_size = sub_size
+
+        self.verbose = verbose
 
         self.nodes = {}
 
@@ -83,9 +88,9 @@ class noisy_rbhc(object):
             self.recursive_split(children[1])
 
         else:               # terminate
-            if parent_node.tree_terminated:
+            if parent_node.tree_terminated and self.verbose:
                 print("reached the leaves")
-            elif parent_node.truncation_terminated:
+            elif parent_node.truncation_terminated and self.verbose:
                 print("truncated")
 
 
@@ -364,7 +369,7 @@ class noisy_rbhc_Node(object):
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
                  prev_wk=1., node_level=0, level_index=0):
         """ __init__(data, data_uncerts, data_model, crp_alpha=1.0
-                     prev_wk=1., node_level=0, level_index=0)
+                     prev_wk=1., node_level=0, level_index=)
 
             Initialise a rBHC node.
 
@@ -390,6 +395,9 @@ class noisy_rbhc_Node(object):
                 increases down the tree.
             level_index : int, optional
                 An index that identifies each node within a level.
+            verbose : bool
+                If true various bits of information, possibly with 
+                diagnostic uses, will be printed.
 
         """
 
@@ -464,8 +472,10 @@ class noisy_rbhc_Node(object):
         """
 
         if (parent_node.prev_wk*parent_node.nk)<1E-3:
-            print("Truncating", parent_node.prev_wk, parent_node.nk,
-                   parent_node.prev_wk*parent_node.nk)
+            if parent_node.verbose:
+                print("Truncating", parent_node.prev_wk,
+                      parent_node.nk,
+                      parent_node.prev_wk*parent_node.nk)
             rBHC_split = False
             parent_node.truncation_terminated = True
             children = []
@@ -541,10 +551,6 @@ class noisy_rbhc_Node(object):
 
                 parent_node.set_rk(0.)               
             
-
-        print("\n", parent_node.node_level, parent_node.level_index, parent_node.nk, parent_node.prev_wk,
-               math.exp(parent_node.log_rk), (1-math.exp(parent_node.log_rk)))
-
         return (rBHC_split, children)
         
 
@@ -569,7 +575,8 @@ class noisy_rbhc_Node(object):
         sub_data = self.data[self.sub_indexes]
         sub_data_uncerts = self.data_uncerts[self.sub_indexes]
         self.sub_bhc = noisy_bhc(sub_data, sub_data_uncerts,
-                                 self.data_model, self.crp_alpha)
+                                 self.data_model, self.crp_alpha,
+                                 verbose=False)
 
     def filter_data(self):
         """ filter_data()
@@ -638,7 +645,6 @@ class noisy_rbhc_Node(object):
                     self.right_data_uncerts = np.vstack(
                                    (self.right_data_uncerts,
                                     self.data_uncerts[np.newaxis,ind]))
-        print("split", np.sum(self.left_allocate), self.left_allocate.size)
 
 
     def get_node_params(self):

@@ -28,7 +28,8 @@ class bhc(object):
     """
 
 
-    def __init__(self, data, data_model, crp_alpha=1.0):
+    def __init__(self, data, data_model, crp_alpha=1.0,
+                 verbose=False):
         """
         Init a bhc instance and perform the clustering.
 
@@ -42,10 +43,14 @@ class bhc(object):
             function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
+        verbose : bool, optional
+            Determibes whetrher info gets dumped to stdout.
         """
         self.data = data
         self.data_model = data_model
         self.crp_alpha = crp_alpha
+
+        self.verbose = verbose
 
         # initialize the tree
         nodes = dict((i, Node(np.array([x]), data_model, crp_alpha,
@@ -58,9 +63,10 @@ class bhc(object):
         rks = []
 
         while n_nodes > 1:
-            sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
-                                                        start_n_nodes))
-            sys.stdout.flush()
+            if self.verbose:
+                sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
+                                                       start_n_nodes))
+                sys.stdout.flush()
 
             max_rk = float('-Inf')
             merged_node = None
