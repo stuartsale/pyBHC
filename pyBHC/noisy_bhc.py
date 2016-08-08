@@ -70,8 +70,9 @@ class noisy_bhc(object):
         self.assignments = [list(assignment)]
         rks = []
 
-        # initialise the posterior GMMs
+        # initialise the posterior & cavity GMMs
         self.post_GMMs = None
+        self.cavity_GMMs = None
 
         while n_nodes > 1:
             if self.verbose:
@@ -205,9 +206,57 @@ class noisy_bhc(object):
             post_GMM.set_mean_covar()
             self.post_GMMs.append(post_GMM)
 
-            
 
-        
+    def get_cavity_priors(self):
+        """ get_cavity_priors()
+
+            Find the 'cavity priors' for each data point as a Gaussian 
+            mixture, with each component in he mixture corresponding
+            to a node that the data point appears in.
+
+        """
+        # travese tree setting params
+
+        self.set_params(self.root_node)
+
+        self.cavity_GMMs = []
+
+        # get mixture models for each data point
+
+        for it in range(self.data.shape[0]):
+            path = self.find_path(it)
+
+            # initialise a GMM
+            cavity_GMM = gmm.GMM()
+
+            node = self.root_node
+
+            weight = node.prev_wk*math.exp(node.log_rk)
+            mu, sigma = node.data_model.cavity_prior(
+                            self.data[it], self.data_uncerts[it],
+                            node.params)
+            cavity_GMM.add_component(weight, mu, sigma)
+
+            for direction in path:
+                if direction=="left":
+                    node = node.left_child
+                elif direction=="right":
+                    node = node.right_child
+
+                mu, sigma = node.data_model.cavity_prior(
+                                self.data[it], self.data_uncerts[it],
+                                node.params)
+            
+                if node.log_rk is not None:
+                    weight = node.prev_wk*math.exp(node.log_rk)
+                else:           # a leaf
+                    weight = node.prev_wk
+
+                cavity_GMM.add_component(weight, mu, sigma)
+
+            cavity_GMM.normalise_weights()
+            cavity_GMM.set_mean_covar()
+            self.cavity_GMMs.append(cavity_GMM)
 
 
     def set_params(self, node):

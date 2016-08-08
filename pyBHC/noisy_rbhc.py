@@ -272,11 +272,6 @@ class noisy_rbhc(object):
                 if node_it>=0:
                     node = self.nodes[level_it][node_it]
 
-                    tree_it = np.nonzero(np.equal(
-                                                node.data,
-                                                self.data[datum_it])\
-                                            .all(1))
-
                     if node.log_rk is not None:
                         weight = node.prev_wk*math.exp(node.log_rk)
                     else:       # leaf
@@ -314,6 +309,69 @@ class noisy_rbhc(object):
             post_GMM.normalise_weights()
             post_GMM.set_mean_covar()
             self.post_GMMs.append(post_GMM)
+
+
+    def get_cavity_priors(self):
+        """ get_cavity_priors()
+
+            Get the 'cavity priors' the prior implied for each datum
+            by removing it from the clusters.
+        """
+        # travese tree setting params
+
+        self.set_params()
+
+        self.cavity_GMMs = []
+
+        # get cavity prior mixture models for each data point    
+        for datum_it in range(self.data.shape[0]):
+            # initialise a GMM
+            cavity_GMM = gmm.GMM()
+
+            for level_it in range(len(self.assignments)):
+                node_it = self.assignments[level_it][datum_it]
+
+                if node_it>=0:
+                    node = self.nodes[level_it][node_it]
+
+                    if node.log_rk is not None:
+                        weight = node.prev_wk*math.exp(node.log_rk)
+                    else:       # leaf
+                        weight = node.prev_wk   
+        
+                    mu, sigma = node.data_model.cavity_prior(
+                                    self.data[datum_it], 
+                                    self.data_uncerts[datum_it],
+                                    node.params)
+                    cavity_GMM.add_component(weight, mu, sigma)
+
+                    # deal with bhc tree children
+                    if node.tree_terminated and node.nk>1:
+
+                        # check if single posteriors need finding 
+                        if node.true_bhc.cavity_GMMs is None:
+                            node.true_bhc.get_cavity_priors()
+
+                        # find index of datum in this tree
+
+                        tree_it = np.nonzero(np.equal(
+                                                node.true_bhc.data,
+                                                self.data[datum_it])\
+                                            .all(1))[0][0]
+
+                        tree_GMM = node.true_bhc.cavity_GMMs[tree_it]
+
+                        tree_prev_wk = (node.prev_wk)
+
+                        cavity_GMM.weights.extend(tree_prev_wk
+                                                *tree_GMM.weights[1:])
+                        cavity_GMM.means.extend(tree_GMM.means[1:])
+                        cavity_GMM.covars.extend(tree_GMM.covars[1:])
+                        cavity_GMM.K += tree_GMM.K-1   
+
+            cavity_GMM.normalise_weights()
+            cavity_GMM.set_mean_covar()
+            self.cavity_GMMs.append(cavity_GMM) 
 
             
         
