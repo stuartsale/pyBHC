@@ -197,6 +197,48 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
             sigma_post : ndarray(d,d)
                 The covariance matrix of the posterior
         """
+        # first get 'cavity prior'
+
+        cavity_mu, cavity_sigma = self.cavity_prior(datum, 
+                                                    datum_uncert, 
+                                                    cluster_params)
+
+        cavity_sigma_inv = np.linalg.inv(cavity_sigma)
+        uncert_inv =  np.linalg.inv(datum_uncert)       
+
+        sigma_post_inv = (cavity_sigma_inv + uncert_inv)
+        sigma_post = np.linalg.inv(sigma_post_inv)
+
+        mu_sum = (np.dot(cavity_sigma_inv, cavity_mu)
+                  +np.dot(uncert_inv, datum))
+        mu_post = np.dot(sigma_post, mu_sum)
+
+        return mu_post, sigma_post
+
+    def cavity_prior(self, datum, datum_uncert, cluster_params):
+        """ cavity_prior(datum, datum_uncert, cluster_params)
+
+            Find the 'cavity prior' for the parameters of a 
+            single datum in a cluster.
+
+            Parameters
+            ----------
+            datum : ndarray
+                The measurement of the data point of interest
+            datum_uncerts : ndarray
+                The uncertianty on the measurement - assumed to be 
+                Gaussian and given as a covariance matrix.
+            cluster_params : dict
+                The posterior parameters of the cluster, in the 
+                form given by update_params().
+
+            Returns
+            -------
+            mu_cavity : ndarray(d)
+                The mean of the cavity prior
+            sigma_cavity : ndarray(d,d)
+                The covariance matrix of the cavity prior
+        """
         # First update params, removing datum
         cavity_params = self.update_remove(datum, datum_uncert, 
                                            cluster_params[0], 
@@ -204,16 +246,10 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
                                            cluster_params[2],
                                            self.d)
 
-        # now calculate posterior params
+        # now calculate cacity prior params
+        sigma_cavity = cavity_params[1]+cavity_params[2]
+        mu_cavity = cavity_params[0]
 
-        prior_like_inv = np.linalg.inv(cavity_params[1]
-                                        +cavity_params[2])
-        sigma_post_inv = (prior_like_inv+np.linalg.inv(datum_uncert))
-        sigma_post = np.linalg.inv(sigma_post_inv)
-
-        mu_sum = (np.dot(prior_like_inv, cavity_params[0])
-                  +np.dot(np.linalg.inv(datum_uncert), datum))
-        mu_post = np.dot(sigma_post, mu_sum)
-
-        return mu_post, sigma_post+self.S
+        return mu_cavity, sigma_cavity
+        
 
