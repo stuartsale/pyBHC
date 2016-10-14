@@ -115,6 +115,19 @@ class GMM(object):
             covar_L = np.linalg.cholesky(self.covars[it])
             self.covar_Ls.append(covar_L)
 
+    def get_covar_invs(self):
+        """ get_covar_invs()
+
+            Find and store the inverses of the
+            covariance matrices.
+        """
+
+        self.covar_invs = []
+
+        for it in range(self.K):
+            covar_inv = np.linalg.inv(self.covars[it])
+            self.covar_invs.append(covar_inv)
+
 
     def set_mean_covar(self):
         """ set_mean_covar()
