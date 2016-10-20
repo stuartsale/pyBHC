@@ -246,8 +246,47 @@ class noisy_rbhc(object):
                                    node.prev_wk*np.exp(node.log_rk)))
         return bhc_str
 
-    def get_single_posteriors(self):
-        """ get_single_posteriors()
+
+    def get_global_posterior(self):
+        """ get_global_posteriors()
+
+            Find the posterior implied by the clustering as a Gaussian 
+            mixture, with each component in he mixture corresponding
+            to a node in the clustering.
+
+        """
+        # travese tree setting params
+
+        self.set_params()
+
+        # initialise a GMM
+        self.global_GMM = gmm.GMM()        
+
+        # Traverse tree
+        for level_it in range(len(self.assignments)):
+
+            for node in self.nodes[level_it].values():
+
+                mu = node.params[0]
+                sigma = node.params[1] + node.params[2]
+
+                if node.log_rk is not None:
+                    weight = node.prev_wk*math.exp(node.log_rk)
+                else:       # leaf
+                    weight = node.prev_wk
+
+                self.global_GMM.add_component(weight, mu, sigma)
+
+                # deal with bhc tree children
+                if node.tree_terminated and node.nk>1:
+                    print("Node has bhc tree child!!!")
+
+        self.global_GMM.normalise_weights()
+        self.global_GMM.set_mean_covar()
+
+
+    def get_individual_posteriors(self):
+        """ get_individual_posteriors()
 
             Find the posteriors for each data point as a Gaussian 
             mixture, with each component in he mixture corresponding
