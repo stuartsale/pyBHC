@@ -275,11 +275,23 @@ class noisy_rbhc(object):
                 else:       # leaf
                     weight = node.prev_wk
 
-                self.global_GMM.add_component(weight, mu, sigma)
+                if weight>0:
+                    self.global_GMM.add_component(weight, mu, sigma)
 
                 # deal with bhc tree children
                 if node.tree_terminated and node.nk>1:
-                    print("Node has bhc tree child!!!")
+
+                    # check if single posteriors need finding 
+                    if node.true_bhc.global_GMM is None:
+                        node.true_bhc.get_global_posterior()
+
+                    self.global_GMM.weights.extend(node.prev_wk
+                                *node.true_bhc.global_GMM.weights[1:])
+                    self.global_GMM.means.extend(
+                                node.true_bhc.global_GMM.means[1:])
+                    self.global_GMM.covars.extend(
+                                node.true_bhc.global_GMM.covars[1:])
+                    self.global_GMM.K += node.true_bhc.global_GMM.K-1
 
         self.global_GMM.normalise_weights()
         self.global_GMM.set_mean_covar()

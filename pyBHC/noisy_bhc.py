@@ -72,6 +72,7 @@ class noisy_bhc(object):
 
         # initialise the posterior & cavity GMMs
         self.post_GMMs = None
+        self.global_GMM = None
         self.cavity_GMMs = None
 
         while n_nodes > 1:
@@ -154,6 +155,49 @@ class noisy_bhc(object):
                     last_right_incluster = new_right_incluster
 
         return merge_path
+
+    def get_global_posterior(self):
+        """ get_global_posteriors()
+
+            Find the posterior implied by the clustering as a Gaussian 
+            mixture, with each component in he mixture corresponding
+            to a node in the clustering.
+
+        """
+        # travese tree setting params
+
+        self.set_params(self.root_node)
+
+        # initialise a GMM
+        self.global_GMM = gmm.GMM()
+
+        # Traverse tree            
+
+        self.add_node_posterior(self.root_node, self.global_GMM)
+
+        self.global_GMM.normalise_weights()
+        self.global_GMM.set_mean_covar()
+
+
+    def add_node_posterior(self, node, GMM):
+
+        if node.log_rk is not None:
+            weight = node.prev_wk*math.exp(node.log_rk)
+        else:           # a leaf
+            weight = node.prev_wk
+        mu = node.params[0]
+        sigma = node.params[1]
+
+        GMM.add_component(weight, mu, sigma)
+
+        if node.left_child is not None:
+            self.add_node_posterior(node.left_child, GMM)
+
+        if node.right_child is not None:
+            self.add_node_posterior(node.right_child, GMM)
+
+
+
 
     def get_single_posteriors(self):
         """ get_single_posteriors()
