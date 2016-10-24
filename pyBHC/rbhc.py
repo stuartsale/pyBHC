@@ -554,15 +554,11 @@ class rbhc_Node(object):
                     self.left_allocate[ind] = True
                     self.left_data = np.vstack((self.left_data, 
                                                 self.data[ind]))
-                    self.left_data_uncerts = np.vstack(
-                                   (self.left_data_uncerts,
-                                    self.data_uncerts[np.newaxis,ind]))
+
                 else: 
                     self.right_data = np.vstack((self.right_data, 
                                                  self.data[ind]))
-                    self.right_data_uncerts = np.vstack(
-                                   (self.right_data_uncerts,
-                                    self.data_uncerts[np.newaxis,ind]))                    
+                   
             
             # non subset data            
             else:
@@ -582,14 +578,10 @@ class rbhc_Node(object):
                     self.left_allocate[ind] = True
                     self.left_data = np.vstack((self.left_data, 
                                                 self.data[ind]))
-                    self.left_data_uncerts = np.vstack(
-                                   (self.left_data_uncerts,
-                                    self.data_uncerts[np.newaxis,ind]))
+
                 else:
                     self.right_data = np.vstack((self.right_data, 
                                                  self.data[ind]))
-                    self.right_data_uncerts = np.vstack(
-                                   (self.right_data_uncerts,
-                                    self.data_uncerts[np.newaxis,ind]))
+
         print("split", np.sum(self.left_allocate), self.left_allocate.size)
         
