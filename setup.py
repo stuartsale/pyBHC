@@ -9,7 +9,7 @@ with open(path.join(here, 'README')) as f:
 
 
 setup(
-    name='sample',
+    name='pyBHC',
 
 #    # No version number yet
 #    version='',
