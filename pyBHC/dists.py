@@ -24,9 +24,9 @@ class CollapsibleDistribution(object):
 
 class NormalInverseWishart(CollapsibleDistribution):
     """
-    Multivariate Normal likelihood with multivariate Normal prior on 
+    Multivariate Normal likelihood with multivariate Normal prior on
     mean and Inverse-Wishart prior on the covariance matrix.
-    All math taken from Kevin Murphy's 2007 technical report, 
+    All math taken from Kevin Murphy's 2007 technical report,
     'Conjugate Bayesian analysis of the Gaussian distribution'.
     """
 
@@ -65,8 +65,8 @@ class NormalInverseWishart(CollapsibleDistribution):
     def calc_log_z(_mu, _lambda, _kappa, _nu):
         d = len(_mu)
         sign, detr = slogdet(_lambda)
-        log_z = (LOG2*(_nu*d/2.0) 
-                 + (d/2.0)*math.log(2*math.pi/_kappa) 
+        log_z = (LOG2*(_nu*d/2.0)
+                 + (d/2.0)*math.log(2*math.pi/_kappa)
                  + multigammaln(_nu/2, d) - (_nu/2.0)*detr)
 
         return log_z
@@ -86,11 +86,11 @@ class NormalInverseWishart(CollapsibleDistribution):
             where X_old is some data we already have and X_new is the
             point at which we want the posterior predictive prob.
 
-            The posterior predictive distribution is a (multivariate) 
+            The posterior predictive distribution is a (multivariate)
             t-distribution.
-            The formula required is given by 
+            The formula required is given by
             en.wikipedia.org/wiki/Conjugate_prior
-            
+
             Parameters
             ----------
             X_old : ndarray
@@ -101,18 +101,16 @@ class NormalInverseWishart(CollapsibleDistribution):
         """
         params_old = self.update_parameters(X_old, self.mu_0,
                                             self.lambda_0,
-                                            self.kappa_0, self.nu_0, 
+                                            self.kappa_0, self.nu_0,
                                             self.d)
-        t_sigma = ((params_old[2]+1)
-                    /(params_old[2]*(params_old[3]-self.d+1))
-                    *params_old[1])
+        t_sigma = ((params_old[2]+1) / (params_old[2]*(params_old[3]-self.d+1))
+                   * params_old[1])
         t_sigma_inv = np.linalg.inv(t_sigma)
         t_dof = params_old[3]-self.d+1
 
-
         t_z = X_new - params_old[0]
         t_logdiff = math.log(1+np.sum(t_z*np.dot(t_sigma_inv, t_z))
-                             /t_dof)
+                             / t_dof)
 
         sgn, det = np.linalg.slogdet(t_sigma)
 
@@ -131,17 +129,17 @@ class NormalInverseWishart(CollapsibleDistribution):
             Sample from the posterior predictive distribution
             conditioned on some data X.
 
-            The posterior predicitve distribution follows a 
-            multivariate t distribution, as per 
-            en.wikipedia.org/wiki/Conjugate_prior . 
-        
+            The posterior predicitve distribution follows a
+            multivariate t distribution, as per
+            en.wikipedia.org/wiki/Conjugate_prior .
+
             The multivariate is sampled by performing
-            x = mu + Z sqrt(nu/u) , 
+            x = mu + Z sqrt(nu/u) ,
             where
             Z ~ N(0, sigma) ,
             u ~ chi2(nu) ,
             this implies
-            x ~ t_nu(mu, sigma)            
+            x ~ t_nu(mu, sigma)
 
             Parameters
             ----------
@@ -154,10 +152,10 @@ class NormalInverseWishart(CollapsibleDistribution):
         output = np.zeros((size, self.d))
 
         params_n = self.update_parameters(X, self.mu_0, self.lambda_0,
-                                          self.kappa_0, self.nu_0, 
+                                          self.kappa_0, self.nu_0,
                                           self.d)
 
-        t_dof = params_n[3] - self.d +1
+        t_dof = params_n[3] - self.d + 1
         t_cov = (params_n[2]+1) / (params_n[2]*t_dof) * params_n[1]
 
         mvn_rv = stats.multivariate_normal(cov=t_cov)
@@ -169,17 +167,17 @@ class NormalInverseWishart(CollapsibleDistribution):
 
             # Sample from multivariate Normal
             z = mvn_rv.rvs()
-            
-            output[it,:] = params_n[0] + z*math.sqrt(t_dof/u)
+
+            output[it, :] = params_n[0] + z*math.sqrt(t_dof/u)
 
         return output
 
 
 class NormalFixedCovar(CollapsibleDistribution):
     """
-    Multivariate Normal likelihood with multivariate Normal prior on 
+    Multivariate Normal likelihood with multivariate Normal prior on
     mean and a fixed covariance matrix.
-    All math taken from Kevin Murphy's 2007 technical report, 
+    All math taken from Kevin Murphy's 2007 technical report,
     'Conjugate Bayesian analysis of the Gaussian distribution'.
     """
 
@@ -239,10 +237,9 @@ class NormalFixedCovar(CollapsibleDistribution):
 
         Q = 0.
         for i in range(n):
-            Q += np.sum(X[i,:]*np.dot(self.S_inv, X[i,:]))
+            Q += np.sum(X[i, :]*np.dot(self.S_inv, X[i, :]))
 
-        lml = (log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q
-                - self.S_det*n/2)
+        lml = log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q - self.S_det*n/2
 
         return lml
 
@@ -253,11 +250,11 @@ class NormalFixedCovar(CollapsibleDistribution):
             where X_old is some data we already have and X_new is the
             point at which we want the posterior predictive prob.
 
-            The posterior predictive distribution is a (multivariate) 
+            The posterior predictive distribution is a (multivariate)
             t-distribution.
-            The formula required is given by 
+            The formula required is given by
             en.wikipedia.org/wiki/Conjugate_prior
-            
+
             Parameters
             ----------
             X_old : ndarray
@@ -266,7 +263,7 @@ class NormalFixedCovar(CollapsibleDistribution):
             X_new : ndarray
                 The point for which we want the posterior predicitve.
         """
-        params_old = self.update_parameters(X_old, self.mu_0, 
+        params_old = self.update_parameters(X_old, self.mu_0,
                                             self.sigma_0, self.S,
                                             self.d)
 
@@ -279,7 +276,7 @@ class NormalFixedCovar(CollapsibleDistribution):
         sgn, det = np.linalg.slogdet(z_sigma)
 
         prob = (- self.d/2*LOG2PI - det/2 - z/2)
-    
+
         return prob
 
     def conditional_sample(self, X, size=1):
@@ -302,16 +299,15 @@ class NormalFixedCovar(CollapsibleDistribution):
 
         output = np.zeros((size, self.d))
 
-        params_n = self.update_parameters(X, self.mu_0, 
-                                            self.sigma_0, self.S,
-                                            self.d)
+        params_n = self.update_parameters(X, self.mu_0, self.sigma_0, self.S,
+                                          self.d)
 
         for it in range(size):
             # get covariance
             cov = params_n[1]+self.S
 
             # Sample from multivariate Normal
-            output[it,:] = stats.multivariate_normal.rvs(
+            output[it, :] = stats.multivariate_normal.rvs(
                                 mean=params_n[0], cov=cov)
 
         return output

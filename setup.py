@@ -11,8 +11,8 @@ with open(path.join(here, 'README')) as f:
 setup(
     name='pyBHC',
 
-#    # No version number yet
-#    version='',
+    # No version number yet
+    # version='',
 
     description='Bayesian Hierarchical clustering in python',
     long_description=long_description,
@@ -47,11 +47,11 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
-#        Not yet tested on Python 3
-#        'Programming Language :: Python :: 3',
-#        'Programming Language :: Python :: 3.3',
-#        'Programming Language :: Python :: 3.4',
-#        'Programming Language :: Python :: 3.5',
+        # Not yet tested on Python 3
+        # 'Programming Language :: Python :: 3',
+        # 'Programming Language :: Python :: 3.3',
+        # 'Programming Language :: Python :: 3.4',
+        # 'Programming Language :: Python :: 3.5',
     ],
 
     # What does your project relate to?

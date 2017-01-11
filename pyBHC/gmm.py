@@ -12,7 +12,7 @@ class GMM(object):
         ----------
         weights : list
             The probability weights for all the components.
-            Should normally sum 
+            Should normally sum
         means : list(ndarray)
             The N dimesional means for the K components. Will have
             shape (K,N)
@@ -23,7 +23,7 @@ class GMM(object):
 
     def __init__(self, weights=None, means=None, covars=None):
         """ __init__(weights=None, means=None, covars=None)
-            
+
             Initialise a GMM object. If no weights etc are supplied
             then an 'empty' mixture is created.
 
@@ -31,7 +31,7 @@ class GMM(object):
             ----------
         weights : list, optional
             The probability weights for all the components.
-            Should normally sum 
+            Should normally sum
         means : list(ndarray), optional
             The N dimesional means for the K components. Will have
             shape (K,N)
@@ -47,7 +47,7 @@ class GMM(object):
 
             self.N = None
             self.K = 0
-        
+
         else:
             self.weights = weights
             self.means = means
@@ -79,13 +79,13 @@ class GMM(object):
         else:
             raise TypeError("Weight should be a float")
 
-        if mean.ndim==1 and mean.shape[0]==self.N:
+        if mean.ndim == 1 and mean.shape[0] == self.N:
             self.means.append(mean)
         else:
             raise ValueError("The mean has the wrong dimension")
 
-        if (covar.ndim==2 and covar.shape[0]==self.N 
-            and covar.shape[1]==self.N):
+        if (covar.ndim == 2 and covar.shape[0] == self.N
+                and covar.shape[1] == self.N):
             self.covars.append(covar)
         else:
             raise ValueError("The covariance matrix has the wrong "
@@ -100,7 +100,6 @@ class GMM(object):
         """
         weights_sum = np.sum(self.weights)
         self.weights /= weights_sum
-
 
     def get_covar_Ls(self):
         """ get_covar_Ls()
@@ -128,7 +127,6 @@ class GMM(object):
             covar_inv = np.linalg.inv(self.covars[it])
             self.covar_invs.append(covar_inv)
 
-
     def set_mean_covar(self):
         """ set_mean_covar()
 
@@ -139,23 +137,22 @@ class GMM(object):
         gmm_2ndmoment = np.zeros((self.N, self.N))
         self.gmm_covar = np.zeros((self.N, self.N))
 
-        if np.sum(self.weights)!=1:
+        if np.sum(self.weights) != 1:
             self.normalise_weights()
 
         for it_K in range(self.K):
             self.gmm_mean += self.weights[it_K]*self.means[it_K]
             gmm_2ndmoment += self.weights[it_K]*(self.covars[it_K]
-                                          +np.outer(self.means[it_K],
-                                                    self.means[it_K]))
+                                                 + np.outer(self.means[it_K],
+                                                            self.means[it_K]))
 
         self.gmm_covar = gmm_2ndmoment - np.outer(self.gmm_mean,
                                                   self.gmm_mean)
-            
 
     @classmethod
     def as_merge(cls, gmm_1, gmm_2):
         """ as_merge(gmm_1, gmm_2)
-        
+
             Create a new GMM by merging two existing GMMs
         """
 
@@ -165,7 +162,7 @@ class GMM(object):
 
         merged_gmm = cls(weights, means, covars)
         merged_gmm.normalise_weights()
-        
+
         return merged_gmm
 
     def sample(self, n_samples=1000):
@@ -198,9 +195,8 @@ class GMM(object):
         for it in range(n_samples):
 
             # sample within a component
-            samples[it] = (self.means[comps[it]] + 
-                           np.dot(self.covar_Ls[comps[it]], 
+            samples[it] = (self.means[comps[it]] +
+                           np.dot(self.covar_Ls[comps[it]],
                                   np.random.randn(self.N)))
 
         return samples
-

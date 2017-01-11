@@ -7,7 +7,7 @@ from bhc import bhc
 
 class rbhc(object):
     """
-    An instance of Randomized Bayesian hierarchical clustering CRP 
+    An instance of Randomized Bayesian hierarchical clustering CRP
     mixture model.
     Attributes
     ----------
@@ -27,10 +27,10 @@ class rbhc(object):
         Parameters
         ----------
         data : numpy.ndarray (n, d)
-            Array of data where each row is a data point and each 
+            Array of data where each row is a data point and each
             column is a dimension.
         data_model : CollapsibleDistribution
-            Provides the approprite ``log_marginal_likelihood`` 
+            Provides the approprite ``log_marginal_likelihood``
             function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
@@ -39,9 +39,9 @@ class rbhc(object):
             tree whose top split is employed to filter the data.
             Denoted m in the Heller & Ghahramani (2005b).
         verbose : bool
-            If true various bits of information, possibly with 
+            If true various bits of information, possibly with
             diagnostic uses, will be printed.
-        """        
+        """
         self.data = data
         self.data_model = data_model
         self.crp_alpha = crp_alpha
@@ -56,15 +56,13 @@ class rbhc(object):
         self.assignments = []
 
         root_node = rbhc_Node(data, data_model, crp_alpha)
-        self.nodes[0] = {0:root_node}
+        self.nodes[0] = {0: root_node}
 
 #        self.tree = rbhc_Node.recursive_split(root_node, 50)
         self.recursive_split(root_node)
 
         self.find_assignments()
         self.refine_probs()
-
-
 
     def recursive_split(self, parent_node):
 
@@ -73,37 +71,35 @@ class rbhc(object):
 
         if self.verbose:
             print("Parent node [{0}][{1}] ".format(
-                       parent_node.node_level, 
+                       parent_node.node_level,
                        parent_node.level_index), end="")
 
         if rBHC_split:      # continue recussing down
             if children[0].node_level not in self.nodes:
                 self.nodes[children[0].node_level] = {}
 
-            self.nodes[children[0].node_level]\
-                      [children[0].level_index] = children[0]
-            self.nodes[children[1].node_level]\
-                      [children[1].level_index] = children[1]
-            
+            self.nodes[children[0].node_level][children[0].level_index] = (
+                                                                children[0])
+            self.nodes[children[1].node_level][children[1].level_index] = (
+                                                                children[1])
+
             if self.verbose:
                 print("split to children:\n"
                       "\tnode [{0}][{1}], size : {2}\n"
                       "\tnode [{3}][{4}], size : {5}\n".format(
-                       children[0].node_level, 
+                       children[0].node_level,
                        children[0].level_index, children[0].nk,
-                       children[1].node_level, 
+                       children[1].node_level,
                        children[1].level_index, children[1].nk))
 
             self.recursive_split(children[0])
             self.recursive_split(children[1])
-
 
         else:               # terminate
             if parent_node.tree_terminated and self.verbose:
                 print("terminated with bhc tree")
             elif parent_node.truncation_terminated and self.verbose:
                 print("truncated")
-
 
     def find_assignments(self):
         """ find_assignements()
@@ -120,38 +116,38 @@ class rbhc(object):
         self.assignments.append(np.zeros(self.data.shape[0]))
 
         for level_key in self.nodes:
-            if level_key!=0:
+            if level_key != 0:
                 self.assignments.append(
                             np.zeros(self.data.shape[0])-1)
 
                 for index_key in self.nodes[level_key]:
-                    if index_key%2==0:
+                    if index_key % 2 == 0:
                         parent_index = int(index_key/2)
                         write_indexes = (self.assignments[level_key-1]
-                                          ==parent_index)
+                                         == parent_index)
 
                         self.assignments[level_key][write_indexes] = (
-                              parent_index*2+1-
-                              self.nodes[level_key-1][parent_index].\
-                              left_allocate.astype(int)  )
+                              parent_index*2+1
+                              - self.nodes[level_key-1][parent_index].
+                              left_allocate.astype(int))
 
     def refine_probs(self):
         """ refine_probs()
 
             Improve the estimated probabilities used by working with
-            the full set of data allocated to each node, rather than 
+            the full set of data allocated to each node, rather than
             just the initial sub-set used to create/split nodes.
         """
         # travel up from leaves improving log_rk etc.
 
         for level_it in range(len(self.assignments)-1, -1, -1):
-#            print(level_it, self.nodes[level_it].keys())
+            # print(level_it, self.nodes[level_it].keys())
 
             for node_it in self.nodes[level_it]:
                 node = self.nodes[level_it][node_it]
 
                 if node.tree_terminated:
-                    if node.nk>1:
+                    if node.nk > 1:
                         # log_rk, etc are accurate
                         node.log_dk = node.true_bhc.root_node.log_dk
                         node.log_pi = node.true_bhc.root_node.log_pi
@@ -161,17 +157,17 @@ class rbhc(object):
                     else:
                         node.log_dk = self.crp_alpha
                         node.log_pi = 0.
-                        node.logp = self.data_model.\
-                                    log_marginal_likelihood(node.data)
-                        node.log_ml =  node.logp
+                        node.logp = self.data_model.log_marginal_likelihood(
+                                                                    node.data)
+                        node.log_ml = node.logp
                         node.log_rk = 0.
 
                 elif node.truncation_terminated:
                     node.log_dk = (math.log(self.crp_alpha)
                                    + math.lgamma(node.nk))
                     node.log_pi = 0.
-                    node.logp = self.data_model.\
-                                    log_marginal_likelihood(node.data)
+                    node.logp = self.data_model.log_marginal_likelihood(
+                                                                node.data)
                     node.log_ml = node.logp
                     node.log_rk = 0.
 
@@ -180,32 +176,28 @@ class rbhc(object):
                     right_child = self.nodes[level_it+1][node_it*2+1]
 
                     node.log_dk = np.logaddexp(
-                           math.log(self.crp_alpha) 
+                           math.log(self.crp_alpha)
                            + math.lgamma(node.nk),
                            left_child.log_dk + right_child.log_dk)
 
                     node.log_pi = -math.log1p(math.exp(
-                                           left_child.log_dk 
-                                         + right_child.log_dk
-                                         - math.log(self.crp_alpha) 
-                                         - math.lgamma(node.nk) ))
+                                           left_child.log_dk
+                                           + right_child.log_dk
+                                           - math.log(self.crp_alpha)
+                                           - math.lgamma(node.nk)))
                     neg_pi = math.log(-math.expm1(node.log_pi))
 
-                    node.logp = self.data_model.\
-                                    log_marginal_likelihood(node.data)
+                    node.logp = self.data_model.log_marginal_likelihood(
+                                                                node.data)
 
                     node.log_ml = np.logaddexp(node.log_pi+node.logp,
-                                               neg_pi
-                                               +left_child.log_ml
-                                               +right_child.log_ml)
-                    node.log_rk = (node.log_pi + node.logp 
-                                    - node.log_ml)
+                                               neg_pi + left_child.log_ml
+                                               + right_child.log_ml)
+                    node.log_rk = node.log_pi + node.logp - node.log_ml
 
+        # travel down from top improving
 
-
-        # travel down from top improving 
-
-        for level_it in range(1,len(self.assignments)):
+        for level_it in range(1, len(self.assignments)):
             for node_it in self.nodes[level_it]:
                 node = self.nodes[level_it][node_it]
                 parent_node = self.nodes[level_it-1][int(node_it/2)]
@@ -217,7 +209,7 @@ class rbhc(object):
         bhc_str = ("==================================\n"
                    "rBHC fit to {0} data points, with "
                    "alpha={1} and sub_size={2} .\n".format(
-                   self.data.shape[0], self.crp_alpha, self.sub_size))
+                       self.data.shape[0], self.crp_alpha, self.sub_size))
 
         for l_it in range(len(self.nodes)):
             bhc_str += "===== LEVEL {0} =====\n".format(l_it)
@@ -225,7 +217,7 @@ class rbhc(object):
                 node = self.nodes[l_it][n_it]
                 bhc_str += ("node : {0} size : {1} "
                             "node_prob : {2:.5f} \n".format(
-                                   n_it, node.nk, 
+                                   n_it, node.nk,
                                    node.prev_wk*np.exp(node.log_rk)))
         return bhc_str
 
@@ -251,30 +243,30 @@ class rbhc(object):
             while not sampled:
 
                 if node.tree_terminated:     # tree has BHC child at this node
-                    if node.nk>1:
-                        output[it,:] = node.true_bhc.sample()
+                    if node.nk > 1:
+                        output[it, :] = node.true_bhc.sample()
                     else:
-                        output[it,:] = self.data_model.conditional_sample(
-                                            node.data)                         
-                    sampled = True      
+                        output[it, :] = self.data_model.conditional_sample(
+                                            node.data)
+                    sampled = True
 
                 elif node.truncation_terminated:
-                    output[it,:] = self.data_model.conditional_sample(
-                                        node.data)  
-                    sampled = True                  
-
-                elif np.random.rand()<math.exp(node.log_rk):
-                    # sample from node
-                    output[it,:] = self.data_model.conditional_sample(
+                    output[it, :] = self.data_model.conditional_sample(
                                         node.data)
                     sampled = True
 
-                else: # drop to next level
-                    child_ratio = (self.nodes[l_it+1][n_it*2].nk
-                                   /(self.nodes[l_it+1][n_it*2].nk
-                                    +self.nodes[l_it+1][n_it*2+1].nk))
+                elif np.random.rand() < math.exp(node.log_rk):
+                    # sample from node
+                    output[it, :] = self.data_model.conditional_sample(
+                                        node.data)
+                    sampled = True
 
-                    if np.random.rand()<child_ratio:
+                else:  # drop to next level
+                    child_ratio = (self.nodes[l_it+1][n_it*2].nk
+                                   / (self.nodes[l_it+1][n_it*2].nk
+                                      + self.nodes[l_it+1][n_it*2+1].nk))
+
+                    if np.random.rand() < child_ratio:
                         l_it += 1
                         n_it = n_it*2
                     else:
@@ -283,8 +275,6 @@ class rbhc(object):
                     node = self.nodes[l_it][n_it]
 
         return output
-
-
 
 
 class rbhc_Node(object):
@@ -305,8 +295,8 @@ class rbhc_Node(object):
             The probability of the merged hypothesis for the node.
             Given by eqn 3 of Heller & Ghahrimani (2005).
         prev_wk : float
-            The product of the (1-r_k) factors for the nodes leading 
-            to this node from (and including) the root node. Used in 
+            The product of the (1-r_k) factors for the nodes leading
+            to this node from (and including) the root node. Used in
             eqn 9 of Heller & ghahramani (2005a).
         node_level : int, optional
             The level in the hierarchy at which the node is found.
@@ -315,19 +305,19 @@ class rbhc_Node(object):
         level_index : int, optional
             An index that identifies each node within a level.
         left_allocate : ndarray(bool)
-            An array that records if a datum has been allocated 
+            An array that records if a datum has been allocated
             to the left child (True) or the right(False).
         log_dk : float
-            Cached probability variable. Do not define if the node is 
+            Cached probability variable. Do not define if the node is
             a leaf.
         log_pi : float
-            Cached probability variable. Do not define if the node is 
+            Cached probability variable. Do not define if the node is
             a leaf.
         log_ml : float
             The log marginal likelihood for the tree of the node and
-            its children. This is given by eqn 2 of Heller & 
-            Ghahrimani (2005). Note that this definition is 
-            recursive.  Do not define if the node is 
+            its children. This is given by eqn 2 of Heller &
+            Ghahrimani (2005). Note that this definition is
+            recursive.  Do not define if the node is
             a leaf.
         logp : float
             The log marginal likelihood for the particular cluster
@@ -349,8 +339,8 @@ class rbhc_Node(object):
             crp_alpha : float, optional
                 Chinese restaurant process concentration parameter
             prev_wk : float
-                The product of the (1-r_k) factors for the nodes 
-                leading to this node from (and including) the root 
+                The product of the (1-r_k) factors for the nodes
+                leading to this node from (and including) the root
                 node. Used in eqn 9 of Heller & ghahramani (2005a).
             node_level : int, optional
                 The level in the hierarchy at which the node is found.
@@ -376,11 +366,10 @@ class rbhc_Node(object):
         self.tree_terminated = False
         self.truncation_terminated = False
 
-
     def set_rk(self, log_rk):
         """ set_rk(log_rk)
 
-            Set the value of the ln(r_k) The probability of the 
+            Set the value of the ln(r_k) The probability of the
             merged hypothesis as given in Eqn 3 of Heller & Ghahramani
             (2005a)
 
@@ -400,7 +389,7 @@ class rbhc_Node(object):
             filtered split, as in Fig 4 of Heller & Ghahramani (2005b)
             is performed.
             Otherwise, if the number of points is less than or equal
-            to subsize then these are simply subject to a bhc 
+            to subsize then these are simply subject to a bhc
             clustering.
 
             Parameters
@@ -423,29 +412,29 @@ class rbhc_Node(object):
                 the data has been found.
             children : list(rbhc_Node) , bhc
                 A clustering of the data, either onto two child
-                rbhc_Nodes or as a full bhc tree of all the data 
+                rbhc_Nodes or as a full bhc tree of all the data
                 within parent_node.
             left_allocate : ndarray(bool)
-                An array that records if a datum has been allocated 
+                An array that records if a datum has been allocated
                 to the left child (True) or the right(False).
         """
 
-        if (parent_node.prev_wk*parent_node.nk)<1E-3:
+        if (parent_node.prev_wk*parent_node.nk) < 1E-3:
             print("Truncating", parent_node.prev_wk, parent_node.nk,
-                   parent_node.prev_wk*parent_node.nk)
+                  parent_node.prev_wk*parent_node.nk)
             rBHC_split = False
             parent_node.truncation_terminated = True
             children = []
 
             # make subsample tree
-            if parent_node.nk>sub_size:
+            if parent_node.nk > sub_size:
                 parent_node.subsample_bhc(sub_size)
 
                 # set log_rk from the estimate given by self.sub_bhc
                 parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
-            elif parent_node.nk>1:
-                parent_node.true_bhc = bhc(parent_node.data, 
-                                           parent_node.data_model, 
+            elif parent_node.nk > 1:
+                parent_node.true_bhc = bhc(parent_node.data,
+                                           parent_node.data_model,
                                            parent_node.crp_alpha)
                 parent_node.set_rk(parent_node.true_bhc.root_node.log_rk)
                 parent_node.tree_terminated = True
@@ -455,7 +444,7 @@ class rbhc_Node(object):
 
         else:
 
-            if parent_node.nk>sub_size:    # do rBHC filter
+            if parent_node.nk > sub_size:    # do rBHC filter
                 # make subsample tree
                 parent_node.subsample_bhc(sub_size)
 
@@ -468,26 +457,23 @@ class rbhc_Node(object):
                 # create new nodes
 
                 child_prev_wk = (parent_node.prev_wk
-                                 *(1-math.exp(parent_node.log_rk)))
+                                 * (1-math.exp(parent_node.log_rk)))
                 child_level = parent_node.node_level+1
 
                 left_child = cls(parent_node.left_data,
-                                 parent_node.data_model, 
+                                 parent_node.data_model,
                                  parent_node.crp_alpha, child_prev_wk,
-                                 child_level, 
-                                 parent_node.level_index*2)
+                                 child_level, parent_node.level_index*2)
                 right_child = cls(parent_node.right_data,
-                                 parent_node.data_model, 
-                                 parent_node.crp_alpha, child_prev_wk,
-                                 child_level,
-                                 parent_node.level_index*2+1)
+                                  parent_node.data_model,
+                                  parent_node.crp_alpha, child_prev_wk,
+                                  child_level, parent_node.level_index*2+1)
                 rBHC_split = True
                 children = [left_child, right_child]
 
-           
-            elif parent_node.nk>1:             # just use the bhc tree
-                parent_node.true_bhc = bhc(parent_node.data, 
-                                           parent_node.data_model, 
+            elif parent_node.nk > 1:             # just use the bhc tree
+                parent_node.true_bhc = bhc(parent_node.data,
+                                           parent_node.data_model,
                                            parent_node.crp_alpha)
                 children = parent_node.true_bhc
                 rBHC_split = False
@@ -500,22 +486,20 @@ class rbhc_Node(object):
                 rBHC_split = False
                 parent_node.tree_terminated = True
 
-                parent_node.set_rk(0.)               
-            
+                parent_node.set_rk(0.)
 
-        print("\n", parent_node.node_level, parent_node.level_index, parent_node.nk, parent_node.prev_wk,
-               math.exp(parent_node.log_rk), (1-math.exp(parent_node.log_rk)))
+        print("\n", parent_node.node_level, parent_node.level_index,
+              parent_node.nk, parent_node.prev_wk,
+              math.exp(parent_node.log_rk), (1-math.exp(parent_node.log_rk)))
 
         return (rBHC_split, children)
-        
-
 
     def subsample_bhc(self, sub_size):
         """ subsample_bhc(sub_size)
 
             Produce a subsample of sub_size data points and then
             perform an bhc clustering on it.
-        
+
             Parameters
             ----------
             sub_size : int
@@ -525,7 +509,7 @@ class rbhc_Node(object):
                 Denoted m in Heller & Ghahramani (2005b).
         """
 
-        self.sub_indexes = np.random.choice(np.arange(self.nk), 
+        self.sub_indexes = np.random.choice(np.arange(self.nk),
                                             sub_size, replace=False)
         sub_data = self.data[self.sub_indexes]
         self.sub_bhc = bhc(sub_data, self.data_model, self.crp_alpha)
@@ -536,7 +520,7 @@ class rbhc_Node(object):
             Filter the data in a rbhc_node onto the two Nodes at the
             second from top layer of a bhc tree.
         """
-        # set up data arrays 
+        # set up data arrays
         self.left_data = np.empty(shape=(0, self.D))
         self.right_data = np.empty(shape=(0, self.D))
 
@@ -546,42 +530,40 @@ class rbhc_Node(object):
         # Run through data
 
         for ind in np.arange(self.nk):
-            
+
             # check if in subset
             if ind in self.sub_indexes:
-                sub_ind = np.argwhere(self.sub_indexes==ind)[0][0]
-                if self.sub_bhc.assignments[-2][sub_ind]==0:
+                sub_ind = np.argwhere(self.sub_indexes == ind)[0][0]
+                if self.sub_bhc.assignments[-2][sub_ind] == 0:
                     self.left_allocate[ind] = True
-                    self.left_data = np.vstack((self.left_data, 
-                                                self.data[ind]))
-
-                else: 
-                    self.right_data = np.vstack((self.right_data, 
-                                                 self.data[ind]))
-                   
-            
-            # non subset data            
-            else:
-                left_prob = (self.sub_bhc.root_node.left_child.log_pi
-                             +self.data_model.log_posterior_predictive(
-                        self.data[ind],
-                        self.sub_bhc.root_node.left_child.data))
-     
-                right_prob = (self.sub_bhc.root_node.right_child.log_pi
-                             +self.data_model.log_posterior_predictive(
-                        self.data[ind],
-                        self.sub_bhc.root_node.right_child.data))
-
-                if left_prob>=right_prob:
-                    # possibly change this to make tupe and vstack at 
-                    # end if cost is high
-                    self.left_allocate[ind] = True
-                    self.left_data = np.vstack((self.left_data, 
+                    self.left_data = np.vstack((self.left_data,
                                                 self.data[ind]))
 
                 else:
-                    self.right_data = np.vstack((self.right_data, 
+                    self.right_data = np.vstack((self.right_data,
+                                                 self.data[ind]))
+
+            # non subset data
+            else:
+                left_prob = (self.sub_bhc.root_node.left_child.log_pi
+                             + self.data_model.log_posterior_predictive(
+                                 self.data[ind],
+                                 self.sub_bhc.root_node.left_child.data))
+
+                right_prob = (self.sub_bhc.root_node.right_child.log_pi
+                              + self.data_model.log_posterior_predictive(
+                                  self.data[ind],
+                                  self.sub_bhc.root_node.right_child.data))
+
+                if left_prob >= right_prob:
+                    # possibly change this to make tupe and vstack at
+                    # end if cost is high
+                    self.left_allocate[ind] = True
+                    self.left_data = np.vstack((self.left_data,
+                                                self.data[ind]))
+
+                else:
+                    self.right_data = np.vstack((self.right_data,
                                                  self.data[ind]))
 
         print("split", np.sum(self.left_allocate), self.left_allocate.size)
-        

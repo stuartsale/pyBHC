@@ -13,20 +13,19 @@ class bhc(object):
     Attributes
     ----------
     assignments : list(list(int))
-        A list of lists, where each list records the clustering at 
+        A list of lists, where each list records the clustering at
         each step by giving the index of the leftmost member of the
         cluster a leaf is traced to.
     root_node : Node
         The root node of the clustering tree.
     lml : float
-        An estimate of the log marginal likelihood of the model 
+        An estimate of the log marginal likelihood of the model
         under a DPMM.
     Notes
     -----
-    The cost of BHC scales as O(n^2) and so becomes inpractically 
+    The cost of BHC scales as O(n^2) and so becomes inpractically
     large for datasets of more than a few hundred points.
     """
-
 
     def __init__(self, data, data_model, crp_alpha=1.0,
                  verbose=False):
@@ -36,10 +35,10 @@ class bhc(object):
         Parameters
         ----------
         data : numpy.ndarray (n, d)
-            Array of data where each row is a data point and each 
+            Array of data where each row is a data point and each
             column is a dimension.
         data_model : CollapsibleDistribution
-            Provides the approprite ``log_marginal_likelihood`` 
+            Provides the approprite ``log_marginal_likelihood``
             function for the data.
         crp_alpha : float (0, Inf)
             CRP concentration parameter.
@@ -65,13 +64,13 @@ class bhc(object):
         while n_nodes > 1:
             if self.verbose:
                 sys.stdout.write("\r{0:d} of {1:d} ".format(n_nodes,
-                                                       start_n_nodes))
+                                                            start_n_nodes))
                 sys.stdout.flush()
 
             max_rk = float('-Inf')
             merged_node = None
 
-            # for each pair of clusters (nodes), compute the merger 
+            # for each pair of clusters (nodes), compute the merger
             # score.
             for left_idx, right_idx in it.combinations(nodes.keys(),
                                                        2):
@@ -100,7 +99,7 @@ class bhc(object):
         self.root_node = nodes[0]
         self.assignments = np.array(self.assignments)
 
-        # The denominator of log_rk is at the final merge is an 
+        # The denominator of log_rk is at the final merge is an
         # estimate of the marginal likelihood of the data under DPMM
         self.lml = self.root_node.log_ml
 
@@ -127,30 +126,30 @@ class bhc(object):
             Parameters
             ----------
             index : int
-                The index of the leaf for which we want the path 
+                The index of the leaf for which we want the path
                 from the root node.
         """
         merge_path = []
         last_leftmost_index = self.assignments[-1][index]
         last_right_incluster = (self.assignments[-1]
-                                ==last_leftmost_index)
+                                == last_leftmost_index)
 
         for it in range(len(self.assignments)-2, -1, -1):
             new_leftmost_index = self.assignments[it][index]
 
-            if new_leftmost_index!=last_leftmost_index:
+            if new_leftmost_index != last_leftmost_index:
                 # True if leaf is on the right hand side of a merge
                 merge_path.append("right")
                 last_leftmost_index = new_leftmost_index
                 last_right_incluster = (self.assignments[it]
-                                        ==new_leftmost_index)
-        
+                                        == new_leftmost_index)
+
             else:       # Not in a right hand side of a merge
 
                 new_right_incluster = (self.assignments[it]
-                                        ==last_leftmost_index)
+                                       == last_leftmost_index)
 
-                if (new_right_incluster!=last_right_incluster).any():
+                if (new_right_incluster != last_right_incluster).any():
                     # True if leaf is on the left hand side of a merge
                     merge_path.append("left")
                     last_right_incluster = new_right_incluster
@@ -159,7 +158,7 @@ class bhc(object):
 
     def sample(self, size=1):
 
-        output = np.zeros((size, self.root_node.data.shape[1])) 
+        output = np.zeros((size, self.root_node.data.shape[1]))
 
         for it in range(size):
 
@@ -169,21 +168,20 @@ class bhc(object):
             while not sampled:
 
                 if node.log_rk is None:     # Node is a leaf
-                    output[it,:] = self.data_model.conditional_sample(
-                                        node.data)
-                    sampled = True                    
-
-                elif np.random.rand()<math.exp(node.log_rk):
-                    # sample from node
-                    output[it,:] = self.data_model.conditional_sample(
+                    output[it, :] = self.data_model.conditional_sample(
                                         node.data)
                     sampled = True
 
-                else: # drop to next level
+                elif np.random.rand() < math.exp(node.log_rk):
+                    # sample from node
+                    output[it, :] = self.data_model.conditional_sample(
+                                                                    node.data)
+                    sampled = True
+
+                else:   # drop to next level
                     child_ratio = (node.left_child.nk
-                                   /(node.left_child.nk
-                                     +node.right_child.nk))
-                    if np.random.rand()>=child_ratio:
+                                   / (node.left_child.nk+node.right_child.nk))
+                    if np.random.rand() >= child_ratio:
                         node = node.right_child
                     else:
                         node = node.left_child
@@ -211,9 +209,9 @@ class Node(object):
         cluster.
     log_ml : float
         The log marginal likelihood for the tree of the node and
-        its children. This is given by eqn 2 of Heller & 
-        Ghahrimani (2005). Note that this definition is 
-        recursive.  Do not define if the node is 
+        its children. This is given by eqn 2 of Heller &
+        Ghahrimani (2005). Note that this definition is
+        recursive.  Do not define if the node is
         a leaf.
     logp : float
         The log marginal likelihood for the particular cluster
@@ -222,22 +220,22 @@ class Node(object):
     log_rk : float
         The log-probability of the merge that created the node. For
         nodes that are leaves (i.e. not created by a merge) this is
-        None.   
+        None.
     left_child : Node
         The left child of a merge. For nodes that are leaves (i.e.
-        the original data points and not made by a merge) this is 
+        the original data points and not made by a merge) this is
         None.
     right_child : Node
-        The right child of a merge. For nodes that are leaves 
-        (i.e. the original data points and not made by a merge) 
+        The right child of a merge. For nodes that are leaves
+        (i.e. the original data points and not made by a merge)
         this is None.
     index : int
-        The indexes of the leaves associated with the node in some 
+        The indexes of the leaves associated with the node in some
         indexing scheme.
     """
 
     def __init__(self, data, data_model, crp_alpha=1.0, log_dk=None,
-                 log_pi=0.0, log_ml=None, logp=None, log_rk=None, 
+                 log_pi=0.0, log_ml=None, logp=None, log_rk=None,
                  left_child=None, right_child=None, indexes=None):
         """
         Parameters
@@ -249,16 +247,16 @@ class Node(object):
         crp_alpha : float (0, Inf)
             CRP concentration parameter
         log_dk : float
-            Cached probability variable. Do not define if the node is 
+            Cached probability variable. Do not define if the node is
             a leaf.
         log_pi : float
-            Cached probability variable. Do not define if the node is 
+            Cached probability variable. Do not define if the node is
             a leaf.
         log_ml : float
             The log marginal likelihood for the tree of the node and
-            its children. This is given by eqn 2 of Heller & 
-            Ghahrimani (2005). Note that this definition is 
-            recursive.  Do not define if the node is 
+            its children. This is given by eqn 2 of Heller &
+            Ghahrimani (2005). Note that this definition is
+            recursive.  Do not define if the node is
             a leaf.
         logp : float
             The log marginal likelihood for the particular cluster
@@ -266,15 +264,15 @@ class Node(object):
             Ghahramani (2005).
         log_rk : float
             The probability of the merged hypothesis for the node.
-            Given by eqn 3 of Heller & Ghahrimani (2005). Do not 
+            Given by eqn 3 of Heller & Ghahrimani (2005). Do not
             define if the node is a leaf.
         left_child : Node, optional
             The left child of a merge. For nodes that are leaves (i.e.
-            the original data points and not made by a merge) this is 
+            the original data points and not made by a merge) this is
             None.
         right_child : Node, optional
-            The right child of a merge. For nodes that are leaves 
-            (i.e. the original data points and not made by a merge) 
+            The right child of a merge. For nodes that are leaves
+            (i.e. the original data points and not made by a merge)
             this is None.
         index : int, optional
             The index of the node in some indexing scheme.
@@ -329,10 +327,10 @@ class Node(object):
         nk = data.shape[0]
         log_dk = logaddexp(math.log(crp_alpha) + math.lgamma(nk),
                            node_left.log_dk + node_right.log_dk)
-        log_pi = -math.log1p(math.exp(node_left.log_dk 
+        log_pi = -math.log1p(math.exp(node_left.log_dk
                                       + node_right.log_dk
-                                      - math.log(crp_alpha) 
-                                      - math.lgamma(nk) ))
+                                      - math.log(crp_alpha)
+                                      - math.lgamma(nk)))
 
         # Calculate log_rk - the log probability of the merge
 
@@ -340,15 +338,13 @@ class Node(object):
         numer = log_pi + logp
 
         neg_pi = math.log(-math.expm1(log_pi))
-        log_ml = logaddexp(numer, neg_pi+node_left.log_ml
-                                  +node_right.log_ml)
+        log_ml = logaddexp(numer, neg_pi+node_left.log_ml + node_right.log_ml)
 
         log_rk = numer-log_ml
 
         if log_pi == 0:
             raise RuntimeError('Precision error')
 
-        return cls(data, data_model, crp_alpha, log_dk, log_pi, 
+        return cls(data, data_model, crp_alpha, log_dk, log_pi,
                    log_ml, logp, log_rk, node_left, node_right,
                    indexes)
-
