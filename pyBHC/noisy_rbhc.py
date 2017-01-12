@@ -88,7 +88,7 @@ class noisy_rbhc(object):
 
             self.nodes[children[0].node_level][children[0].level_index] = (
                                                                 children[0])
-            self.nodes[children[1].node_level]\[children[1].level_index] = (
+            self.nodes[children[1].node_level][children[1].level_index] = (
                                                                 children[1])
 
             if self.verbose:
