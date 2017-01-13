@@ -40,7 +40,8 @@ class GMM(object):
             shape (K,N,N)
         """
 
-        if weights is None or means is None or covars is None:
+        if (weights is None or means is None or covars is None
+                or len(weights) == 0 or len(means) == 0 or len(covars) == 0):
             self.weights = []
             self.means = []
             self.covars = []
@@ -98,8 +99,9 @@ class GMM(object):
 
             Normalise the weights so that they sum to 1.
         """
-        weights_sum = np.sum(self.weights)
-        self.weights /= weights_sum
+        if self.K > 0:
+            weights_sum = np.sum(self.weights)
+            self.weights /= weights_sum
 
     def get_covar_Ls(self):
         """ get_covar_Ls()
@@ -133,21 +135,28 @@ class GMM(object):
             Set the mean and covariance across the GMM
         """
 
-        self.gmm_mean = np.zeros(self.N)
-        gmm_2ndmoment = np.zeros((self.N, self.N))
-        self.gmm_covar = np.zeros((self.N, self.N))
+        if self.K > 0:
 
-        if np.sum(self.weights) != 1:
-            self.normalise_weights()
+            self.gmm_mean = np.zeros(self.N)
+            gmm_2ndmoment = np.zeros((self.N, self.N))
+            self.gmm_covar = np.zeros((self.N, self.N))
 
-        for it_K in range(self.K):
-            self.gmm_mean += self.weights[it_K]*self.means[it_K]
-            gmm_2ndmoment += self.weights[it_K]*(self.covars[it_K]
-                                                 + np.outer(self.means[it_K],
-                                                            self.means[it_K]))
+            if np.sum(self.weights) != 1:
+                self.normalise_weights()
 
-        self.gmm_covar = gmm_2ndmoment - np.outer(self.gmm_mean,
-                                                  self.gmm_mean)
+            for it_K in range(self.K):
+                self.gmm_mean += self.weights[it_K]*self.means[it_K]
+                gmm_2ndmoment += self.weights[it_K]*(
+                                    self.covars[it_K]
+                                    + np.outer(self.means[it_K],
+                                               self.means[it_K]))
+
+            self.gmm_covar = gmm_2ndmoment - np.outer(self.gmm_mean,
+                                                      self.gmm_mean)
+
+        else:
+            self.gmm_mean = None
+            self.gmm_covar = None
 
     @classmethod
     def as_merge(cls, gmm_1, gmm_2):
