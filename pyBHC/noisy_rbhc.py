@@ -72,6 +72,8 @@ class noisy_rbhc(object):
         self.find_assignments()
         self.refine_probs()
 
+        self.params_set = False
+
     def recursive_split(self, parent_node):
 
         rBHC_split, children = noisy_rbhc_Node.as_split(parent_node,
@@ -249,7 +251,8 @@ class noisy_rbhc(object):
         """
         # travese tree setting params
 
-        self.set_params()
+        if not self.params_set:
+            self.set_params()
 
         # initialise a GMM
         self.global_GMM = gmm.GMM()
@@ -288,70 +291,75 @@ class noisy_rbhc(object):
         self.global_GMM.normalise_weights()
         self.global_GMM.set_mean_covar()
 
-    def get_individual_posteriors(self):
-        """ get_individual_posteriors()
+    def get_individual_posterior(self, index):
+        """ get_individual_posterior(index)
 
-            Find the posteriors for each data point as a Gaussian
+            Find the posteriors for a data point as a Gaussian
             mixture, with each component in he mixture corresponding
             to a node that the data point appears in.
 
+            Parameters
+            ----------
+            index : int
+                The index of the data point
+
+            Returns
+            -------
+            post_GMM : gmm.GMM
+                A Gaussian mixture model description of the posterior
         """
         # travese tree setting params
 
-        self.set_params()
+        if not self.params_set:
+            self.set_params()
 
-        self.post_GMMs = []
+        # get mixture model for data point
 
-        # get mixture models for each data point
+        # initialise a GMM
+        post_GMM = gmm.GMM()
 
-        for datum_it in range(self.data.shape[0]):
-            # initialise a GMM
-            post_GMM = gmm.GMM()
+        for level_it in range(len(self.assignments)):
+            node_it = self.assignments[level_it][index]
 
-            for level_it in range(len(self.assignments)):
-                node_it = self.assignments[level_it][datum_it]
+            if node_it >= 0:
+                node = self.nodes[level_it][node_it]
 
-                if node_it >= 0:
-                    node = self.nodes[level_it][node_it]
+                if node.log_rk is not None:
+                    weight = node.prev_wk*math.exp(node.log_rk)
+                else:       # leaf
+                    weight = node.prev_wk
 
-                    if node.log_rk is not None:
-                        weight = node.prev_wk*math.exp(node.log_rk)
-                    else:       # leaf
-                        weight = node.prev_wk
-#                    mu, sigma = node.data_model.single_posterior(
-#                                    self.data[datum_it],
-#                                    self.data_uncerts[datum_it],
-#                                    node.params)
-                    mu = node.params[0]
-                    sigma = node.params[1] + node.params[2]
+                mu = node.params[0]
+                sigma = node.params[1] + node.params[2]
 
-                    post_GMM.add_component(weight, mu, sigma)
+                post_GMM.add_component(weight, mu, sigma)
 
-                    # deal with bhc tree children
-                    if node.tree_terminated and node.nk > 1:
+                # deal with bhc tree children
+                if node.tree_terminated and node.nk > 1:
 
-                        # check if single posteriors need finding
-                        if node.true_bhc.post_GMMs is None:
-                            node.true_bhc.get_single_posteriors()
+                    # check if single posteriors need finding
+                    if node.true_bhc.post_GMMs is None:
+                        node.true_bhc.get_single_posteriors()
 
-                        # find index of datum in this tree
+                    # find index of datum in this tree
 
-                        tree_it = np.nonzero(np.equal(node.true_bhc.data,
-                                                      self.data[datum_it])
-                                             .all(1))[0][0]
-                        tree_GMM = node.true_bhc.post_GMMs[tree_it]
+                    tree_it = np.nonzero(np.equal(node.true_bhc.data,
+                                                  self.data[index])
+                                         .all(1))[0][0]
+                    tree_GMM = node.true_bhc.post_GMMs[tree_it]
 
-                        tree_prev_wk = (node.prev_wk)
+                    tree_prev_wk = (node.prev_wk)
 
-                        post_GMM.weights.extend(tree_prev_wk
-                                                * tree_GMM.weights[1:])
-                        post_GMM.means.extend(tree_GMM.means[1:])
-                        post_GMM.covars.extend(tree_GMM.covars[1:])
-                        post_GMM.K += tree_GMM.K-1
+                    post_GMM.weights.extend(tree_prev_wk
+                                            * tree_GMM.weights[1:])
+                    post_GMM.means.extend(tree_GMM.means[1:])
+                    post_GMM.covars.extend(tree_GMM.covars[1:])
+                    post_GMM.K += tree_GMM.K-1
 
-            post_GMM.normalise_weights()
-            post_GMM.set_mean_covar()
-            self.post_GMMs.append(post_GMM)
+        post_GMM.normalise_weights()
+        post_GMM.set_mean_covar()
+
+        return post_GMM
 
     def get_cavity_priors(self):
         """ get_cavity_priors()
@@ -361,7 +369,8 @@ class noisy_rbhc(object):
         """
         # travese tree setting params
 
-        self.set_params()
+        if not self.params_set:
+            self.set_params()
 
         self.cavity_GMMs = []
 
@@ -419,6 +428,8 @@ class noisy_rbhc(object):
         for level_it in self.nodes:
             for node in self.nodes[level_it].values():
                 node.get_node_params()
+
+        self.params_set = True
 
 
 class noisy_rbhc_Node(object):
