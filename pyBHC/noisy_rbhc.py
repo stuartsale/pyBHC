@@ -729,19 +729,13 @@ class noisy_rbhc_Node(object):
 
             # non subset data
             else:
-                left_prob = (
-                    self.sub_bhc.root_node.left_child.log_pi
-                    + self.data_model.log_posterior_predictive(
-                        self.data[ind], self.data_uncerts[ind],
-                        self.sub_bhc.root_node.left_child.data,
-                        self.sub_bhc.root_node.left_child.data_uncerts))
+                left_prob = self.sub_bhc.tree_posterior_predictive_prob(
+                                self.sub_bhc.root_node.left_child, 
+                                self.data[ind], self.data_uncerts[ind])
 
-                right_prob = (
-                    self.sub_bhc.root_node.right_child.log_pi
-                    + self.data_model.log_posterior_predictive(
-                         self.data[ind], self.data_uncerts[ind],
-                         self.sub_bhc.root_node.right_child.data,
-                         self.sub_bhc.root_node.right_child.data_uncerts))
+                right_prob = self.sub_bhc.tree_posterior_predictive_prob(
+                                self.sub_bhc.root_node.right_child, 
+                                self.data[ind], self.data_uncerts[ind])
 
                 if left_prob >= right_prob:
                     # possibly change this to make tupe and vstack at

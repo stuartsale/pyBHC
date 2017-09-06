@@ -309,6 +309,51 @@ class noisy_bhc(object):
             node.right_child.prev_wk = child_prev_wk
             self.set_params(node.right_child)
 
+    def tree_posterior_predictive_prob(self, node, new_data, new_data_uncerts):
+        """ tree_posterior_predictive_prob(new_data, new_data_uncerts)
+
+            Evaluate the posterior predictive probability of some
+            data with uncertainties given a BHC clustering tree below
+            some node
+
+            Parameters
+            ----------
+            new_data : ndarray
+                The new data
+            new_data_uncerts : ndarray
+                The uncertainties on the new data
+            node : noisy_node
+                The root node of the tree whose posterior predicitive
+                is being calculated
+
+            Returns
+            -------
+            log_pp : float
+                The logarithm of the posterior predictive probability
+                of the new data
+        """
+        if node.log_rk is not None:
+            weight = math.exp(node.log_rk)
+        else:           # a leaf
+            weight = 1.
+
+        pp = weight * math.exp(node.posterior_predictive_prob(
+                                                new_data, new_data_uncerts))
+
+        if node.left_child is not None:
+            pp += ((1-weight)/2.
+                   * self.tree_posterior_predictive_prob(node.left_child,
+                                                         new_data,
+                                                         new_data_uncerts))
+
+        if node.right_child is not None:
+            pp += ((1-weight)/2.
+                   * self.tree_posterior_predictive_prob(node.right_child,
+                                                         new_data,
+                                                         new_data_uncerts))
+
+        return pp
+
 
 class noisy_Node(object):
     """ A node in the hierarchical clustering.
@@ -490,3 +535,27 @@ class noisy_Node(object):
                                               self.data_model.sigma_0,
                                               self.data_model.S,
                                               self.data_model.d)
+
+    def posterior_predictive_prob(self, new_data, new_data_uncerts):
+        """ posterior_predictive_prob(new_data, new_data_uncerts)
+
+            Evaluate the posterior predictive probability of some
+            data with uncertainties given the data in the node.
+
+            Parameters
+            ----------
+            new_data : ndarray
+                The new data
+            new_data_uncerts : ndarray
+                The uncertainties on the new data
+
+            Returns
+            -------
+            log_pp : float
+                The logarithm of the posterior predictive probability
+                of the new data
+        """
+        log_pp = self.data_model.log_posterior_predictive(
+                                            new_data, new_data_uncerts,
+                                            self.data, self.data_uncerts)
+        return log_pp
