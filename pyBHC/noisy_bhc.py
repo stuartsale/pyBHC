@@ -309,8 +309,10 @@ class noisy_bhc(object):
             node.right_child.prev_wk = child_prev_wk
             self.set_params(node.right_child)
 
-    def tree_posterior_predictive_prob(self, node, new_data, new_data_uncerts):
-        """ tree_posterior_predictive_prob(new_data, new_data_uncerts)
+    def tree_posterior_predictive_prob(self, node, new_data, new_data_uncerts,
+                                       target_prob=np.inf):
+        """ tree_posterior_predictive_prob(new_data, new_data_uncerts,
+                                           target_prob=np.inf)
 
             Evaluate the posterior predictive probability of some
             data with uncertainties given a BHC clustering tree below
@@ -325,6 +327,10 @@ class noisy_bhc(object):
             node : noisy_node
                 The root node of the tree whose posterior predicitive
                 is being calculated
+            target_prob : float
+                A probability against which this calculation is being
+                compared. Halt calculation when this probability is
+                surpassed
 
             Returns
             -------
@@ -340,13 +346,13 @@ class noisy_bhc(object):
         pp = weight * math.exp(node.posterior_predictive_prob(
                                                 new_data, new_data_uncerts))
 
-        if node.left_child is not None:
+        if node.left_child is not None and pp <= target_prob:
             pp += ((1-weight)/2.
                    * self.tree_posterior_predictive_prob(node.left_child,
                                                          new_data,
                                                          new_data_uncerts))
 
-        if node.right_child is not None:
+        if node.right_child is not None and pp <= target_prob:
             pp += ((1-weight)/2.
                    * self.tree_posterior_predictive_prob(node.right_child,
                                                          new_data,
