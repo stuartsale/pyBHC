@@ -162,7 +162,7 @@ class hard_EM_GMM(object):
             self.assign_data()
 
     @classmethod
-    def init_fit(cls, X, Nclusters, Nsteps):
+    def init_fit(cls, X, Nclusters, Nsteps, init_method='kmeans'):
         """ init_fit(X, Nclusters, Nsteps)
 
             Factory method to init and then perform hard-EM
@@ -176,6 +176,10 @@ class hard_EM_GMM(object):
                 The number of clusters/components
             Nsteps : int
                 The number of steps of EM to perform
+            init_method : str or function
+                The method used to provide the initial assignment of
+                data to clusters. Can be 'kmeans', 'random' or a user
+                supplied function
 
             Returns
             -------
@@ -184,7 +188,14 @@ class hard_EM_GMM(object):
                 hard-EM have been performed
         """
         EM_obj = cls(X, Nclusters)
-        EM_obj.kmeans_init()
+
+        if init_method == 'kmeans':
+            EM_obj.kmeans_init()
+        elif init_method == 'random':
+            EM_obj.random_seed()
+        else:
+            EM_obj = init_method(X, Nclusters)
+
         EM_obj.fit(Nsteps)
 
         return EM_obj
