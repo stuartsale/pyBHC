@@ -1,8 +1,7 @@
 from __future__ import print_function, division
 import math
 import numpy as np
-
-from uncert_dists import uncert_NormalFixedCovar
+from sklearn.cluster import MiniBatchKMeans
 
 
 class hard_EM_GMM(object):
@@ -72,6 +71,28 @@ class hard_EM_GMM(object):
 
         # Assign all data to clusters
         self.assign_data()
+
+    def kmeans_init(self):
+        """ kmeans_init()
+
+            Use a k-means clustering to provide the initial
+            assignments for the EM.
+
+            Parameters
+            ----------
+            None
+
+            Returns
+            -------
+            None
+        """
+        mbk = MiniBatchKMeans(init='k-means++', n_clusters=self.Nclusters,
+                              batch_size=50)
+        mbk.fit(self.X)
+
+        self.assignments = mbk.labels_.copy()
+        for i in range(self.Ndata):
+            self.clusters[self.assignments[i]].add_datum(self.X[i])
 
     def assign_data(self):
         """ assign_data()
@@ -163,7 +184,7 @@ class hard_EM_GMM(object):
                 hard-EM have been performed
         """
         EM_obj = cls(X, Nclusters)
-        EM_obj.random_seed()
+        EM_obj.kmeans_init()
         EM_obj.fit(Nsteps)
 
         return EM_obj
