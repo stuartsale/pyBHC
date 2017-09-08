@@ -4,6 +4,7 @@ import numpy as np
 
 from uncert_dists import uncert_NormalFixedCovar
 
+
 class hard_EM_GMM(object):
     """ A class for performing hard-EM clustering into a Gaussian
         mixture model.
@@ -30,15 +31,15 @@ class hard_EM_GMM(object):
     def __init__(self, X, Nclusters):
 
         self.X = X
-        fallback_sigma = np.cov(self.X)
+        fallback_sigma = np.cov(self.X, rowvar=False)
 
         self.Ndata = X.shape[0]
         self.Ndim = X.shape[1]
 
         self.Nclusters = Nclusters
-        
+
         self.clusters = []
-        for n in Nclusters:
+        for n in range(Nclusters):
             self.clusters.append(EMCGMM_cluster(self.Ndim, self.Ndata,
                                                 fallback_sigma))
 
@@ -90,15 +91,19 @@ class hard_EM_GMM(object):
             cluster.clear_data()
 
         for i in range(self.Ndata):
-            max_prob = -np.inf
+            max_logprob = -np.inf
             max_j = -1
             for j in range(self.Nclusters):
-                prob = self.clusters[j].prob(self.X[i])
-                if prob > max_prob:
-                    max_prob = prob
+                logprob = self.clusters[j].logprob(self.X[i])
+                if logprob > max_logprob:
+                    max_logprob = logprob
                     max_j = j
             self.assignments[i] = max_j
-            self.clusters[j].add_datum(self.X[i])
+            self.clusters[max_j].add_datum(self.X[i])
+            #print(max_j, max_logprob)
+        print("===================")
+        for j in range(self.Nclusters):
+            print(j, len(self.clusters[j].data))
 
     def set_params(self):
         """ set_params()
@@ -164,6 +169,7 @@ class hard_EM_GMM(object):
 
         return EM_obj
 
+
 class EMCGMM_cluster(object):
     """ A class that describes an individual cluster in a GMM
         scheme that is found/refined by EM
@@ -192,10 +198,10 @@ class EMCGMM_cluster(object):
     def __init__(self, Ndim, Ndata, fallback_sigma):
         self.Ndim = Ndim
         self.Ndata = Ndata
-        self.fallback_sigma = sigma
+        self.fallback_sigma = fallback_sigma
 
         self.mu = np.zeros(self.Ndim)
-        self.sigma = np.zeros(self.Ndim, self.Ndim)
+        self.sigma = np.zeros((self.Ndim, self.Ndim))
         self.weight = 0.
 
         self.data = []
@@ -241,7 +247,7 @@ class EMCGMM_cluster(object):
         else:
             self.mu = np.zeros(self.Ndim)
         if len(self.data) > 1:
-            self.sigma = np.cov(self.data)
+            self.sigma = np.cov(self.data, rowvar=False)
         else:
             self.sigma = self.fallback_sigma
         self.weight = len(self.data)/self.Ndata
@@ -264,7 +270,12 @@ class EMCGMM_cluster(object):
                 member of this cluster
         """
         q = np.linalg.solve(self.sigma, x-self.mu)
-        log_prob = (math.log(self.weight) - np.linalg.slogdet(self.sigma)[1]/2
-                    - np.sum(x*q)/2)
+        #print(self.weight)
+        if self.weight > 0:
+            log_prob = (math.log(self.weight)
+                        - np.linalg.slogdet(self.sigma)[1]/2
+                        - np.sum(x*q)/2)
+        else:
+            log_prob = -np.inf
 
         return log_prob
