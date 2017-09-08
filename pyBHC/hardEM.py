@@ -43,7 +43,7 @@ class hard_EM_GMM(object):
             self.clusters.append(EMCGMM_cluster(self.Ndim, self.Ndata,
                                                 fallback_sigma))
 
-        self.assignments = np.zeros(self.Ndata) + np.nan
+        self.assignments = np.zeros(self.Ndata, dtype=np.int)
 
     def random_seed(self):
         """ random_seed()
@@ -90,20 +90,19 @@ class hard_EM_GMM(object):
         for cluster in self.clusters:
             cluster.clear_data()
 
-        for i in range(self.Ndata):
-            max_logprob = -np.inf
-            max_j = -1
-            for j in range(self.Nclusters):
-                logprob = self.clusters[j].logprob(self.X[i])
-                if logprob > max_logprob:
-                    max_logprob = logprob
-                    max_j = j
-            self.assignments[i] = max_j
-            self.clusters[max_j].add_datum(self.X[i])
-            #print(max_j, max_logprob)
-        print("===================")
+        max_logprob = np.zeros(self.Ndata) - np.inf
+        max_j = np.zeros(self.Ndata, dtype=np.int) - 1
+
         for j in range(self.Nclusters):
-            print(j, len(self.clusters[j].data))
+            logprob = self.clusters[j].logprob(self.X)
+            mask = logprob > max_logprob
+            max_logprob[mask] = logprob[mask]
+            max_j[mask] = j
+
+        self.assignments = max_j
+
+        for i in range(self.Ndata):
+            self.clusters[max_j[i]].add_datum(self.X[i])
 
     def set_params(self):
         """ set_params()
@@ -269,12 +268,11 @@ class EMCGMM_cluster(object):
                 The log probability of the datum assuming it is a
                 member of this cluster
         """
-        q = np.linalg.solve(self.sigma, x-self.mu)
+        q = np.linalg.solve(self.sigma, (x-self.mu).T).T
         if self.weight > 0:
             log_prob = (math.log(self.weight)
                         - np.linalg.slogdet(self.sigma)[1]/2
-                        - np.sum((x-self.mu)*q)/2)
+                        - np.sum((x-self.mu) * q, axis=1)/2)
         else:
             log_prob = -np.inf
-
         return log_prob
