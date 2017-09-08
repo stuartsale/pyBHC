@@ -270,11 +270,10 @@ class EMCGMM_cluster(object):
                 member of this cluster
         """
         q = np.linalg.solve(self.sigma, x-self.mu)
-        #print(self.weight)
         if self.weight > 0:
             log_prob = (math.log(self.weight)
                         - np.linalg.slogdet(self.sigma)[1]/2
-                        - np.sum(x*q)/2)
+                        - np.sum((x-self.mu)*q)/2)
         else:
             log_prob = -np.inf
 
