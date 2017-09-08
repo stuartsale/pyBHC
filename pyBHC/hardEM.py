@@ -44,6 +44,10 @@ class hard_EM_GMM(object):
 
         self.assignments = np.zeros(self.Ndata, dtype=np.int)
 
+        self.__mus = None
+        self.__sigmas = None
+        self.__weights = None
+
     def random_seed(self):
         """ random_seed()
 
@@ -160,6 +164,60 @@ class hard_EM_GMM(object):
         for i in range(Nsteps):
             self.set_params()
             self.assign_data()
+
+    @property
+    def mus(self):
+        """ mus
+
+            Return the moments of the clusters
+
+            Returns
+            -------
+            mus : ndarray(Nclusters, Ndim)
+                The means of the clusters, the first index iterates
+                over the clusters
+        """
+        self.__mus = np.zeros((self.Nclusters, self.Ndim))
+        for i in range(self.Nclusters):
+            self.__mus[i] = self.clusters[i].mu
+
+        return self.__mus
+
+    @property
+    def sigmas(self):
+        """ sigmas
+
+            The covaraince matrices of the clusters
+
+            Returns
+            -------
+            sigmas : ndarray(Nclusters, Ndim, Ndim)
+                The covariance matrices of the clusters, the first
+                index iterates over the clusters
+        """
+        self.__sigmas = np.zeros((self.Nclusters, self.Ndim, self.Ndim))
+        for i in range(self.Nclusters):
+            self.__sigmas[i] = self.clusters[i].sigma
+
+        return self.__sigmas
+
+    @property
+    def weights(self):
+        """ weights
+
+            Return the weights of the clusters
+
+            Returns
+            -------
+            weights : ndarray(Nclusters, Ndim)
+                The weights of the clusters, the index iterates
+                over the clusters
+        """
+        self.__weights = np.zeros(self.Nclusters)
+        for i in range(self.Nclusters):
+            self.__weights[i] = self.clusters[i].weight
+
+        return self.__weights
 
     @classmethod
     def init_fit(cls, X, Nclusters, Nsteps, init_method='kmeans'):
