@@ -40,7 +40,7 @@ class hard_EM_GMM(object):
         self.clusters = []
         for n in range(Nclusters):
             self.clusters.append(EMGMM_cluster(self.Ndim, self.Ndata,
-                                                fallback_sigma))
+                                               fallback_sigma))
 
         self.assignments = np.zeros(self.Ndata, dtype=np.int)
 
