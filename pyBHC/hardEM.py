@@ -39,7 +39,7 @@ class hard_EM_GMM(object):
 
         self.clusters = []
         for n in range(Nclusters):
-            self.clusters.append(EMCGMM_cluster(self.Ndim, self.Ndata,
+            self.clusters.append(EMGMM_cluster(self.Ndim, self.Ndata,
                                                 fallback_sigma))
 
         self.assignments = np.zeros(self.Ndata, dtype=np.int)
@@ -259,7 +259,7 @@ class hard_EM_GMM(object):
         return EM_obj
 
 
-class EMCGMM_cluster(object):
+class EMGMM_cluster(object):
     """ A class that describes an individual cluster in a GMM
         scheme that is found/refined by EM
 
