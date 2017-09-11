@@ -113,6 +113,9 @@ class noisy_bhc(object):
         self.root_node = nodes[0]
         self.assignments = np.array(self.assignments)
 
+        # travese tree setting params
+        self.set_params(self.root_node)
+
         # The denominator of log_rk is at the final merge is an
         # estimate of the marginal likelihood of the data under DPMM
         self.lml = self.root_node.log_ml
@@ -164,10 +167,6 @@ class noisy_bhc(object):
             to a node in the clustering.
 
         """
-        # travese tree setting params
-
-        self.set_params(self.root_node)
-
         # initialise a GMM
         self.global_GMM = gmm.GMM()
 
@@ -203,10 +202,6 @@ class noisy_bhc(object):
             to a node that the data point appears in.
 
         """
-        # travese tree setting params
-
-        self.set_params(self.root_node)
-
         self.post_GMMs = []
 
         # get mixture models for each data point
@@ -254,10 +249,6 @@ class noisy_bhc(object):
             to a node that the data point appears in.
 
         """
-        # travese tree setting params
-
-        self.set_params(self.root_node)
-
         self.cavity_GMMs = []
 
         # get mixture models for each data point
@@ -367,10 +358,10 @@ class noisy_bhc(object):
 
         # start from root node
         l_it = 0
-        prev_nodes = {0 : self.root_node}
+        prev_nodes = {0: self.root_node}
 
         # Now iterate over levels
-        while len(prev_nodes)>0:
+        while len(prev_nodes) > 0:
             l_it += 1
             bhc_str += "===== LEVEL {0} =====\n".format(l_it)
             nodes = {}
@@ -382,7 +373,7 @@ class noisy_bhc(object):
                                 "node_prob : {2:.5G} ({3:G} {4:G})\n".format(
                                        i, prev_nodes[i].nk,
                                        prev_nodes[i].prev_wk
-                                       *math.exp(prev_nodes[i].log_rk),
+                                       * math.exp(prev_nodes[i].log_rk),
                                        np.mean(prev_nodes[i].data, axis=0)[0],
                                        np.mean(prev_nodes[i].data, axis=0)[1]))
                     nodes[i*2] = prev_nodes[i].left_child
@@ -390,7 +381,7 @@ class noisy_bhc(object):
 
                 # if leaf
                 else:
-                     bhc_str += ("node : {0} size : {1} "
+                    bhc_str += ("node : {0} size : {1} "
                                 "node_prob : {2:.5G} ({3:G} {4:G})\n".format(
                                        i, prev_nodes[i].nk,
                                        prev_nodes[i].prev_wk,
