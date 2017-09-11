@@ -360,6 +360,47 @@ class noisy_bhc(object):
 
         return pp
 
+    def __str__(self):
+        bhc_str = ("==================================\n"
+                   "BHC fit to {0} (noisy) data points, with "
+                   "alpha={1} .\n".format(self.data.shape[0], self.crp_alpha))
+
+        # start from root node
+        l_it = 0
+        prev_nodes = {0 : self.root_node}
+
+        # Now iterate over levels
+        while len(prev_nodes)>0:
+            l_it += 1
+            bhc_str += "===== LEVEL {0} =====\n".format(l_it)
+            nodes = {}
+
+            for i in sorted(prev_nodes.keys()):
+                # If children exist
+                if prev_nodes[i].log_rk is not None:
+                    bhc_str += ("node : {0} size : {1} "
+                                "node_prob : {2:.5G} ({3:G} {4:G})\n".format(
+                                       i, prev_nodes[i].nk,
+                                       prev_nodes[i].prev_wk
+                                       *math.exp(prev_nodes[i].log_rk),
+                                       np.mean(prev_nodes[i].data, axis=0)[0],
+                                       np.mean(prev_nodes[i].data, axis=0)[1]))
+                    nodes[i*2] = prev_nodes[i].left_child
+                    nodes[i*2+1] = prev_nodes[i].right_child
+
+                # if leaf
+                else:
+                     bhc_str += ("node : {0} size : {1} "
+                                "node_prob : {2:.5G} ({3:G} {4:G})\n".format(
+                                       i, prev_nodes[i].nk,
+                                       prev_nodes[i].prev_wk,
+                                       prev_nodes[i].data[0, 0],
+                                       prev_nodes[i].data[0, 1]))
+
+            prev_nodes = nodes
+
+        return bhc_str
+
 
 class noisy_Node(object):
     """ A node in the hierarchical clustering.
