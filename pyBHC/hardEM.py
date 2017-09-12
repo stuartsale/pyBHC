@@ -166,6 +166,31 @@ class hard_EM_GMM(object):
             self.assign_data()
 
     @property
+    def clustered_data(self):
+        """ mus
+
+            Return the clustered data
+
+            Returns
+            -------
+            data : list (ndarray(..., Ndim))
+                A list of ndarrays, each array contains the data assigned
+                to a single cluster
+            data_uncerts : list (ndarray(..., Ndim, Ndim))
+                A list of ndarrays, each array contains the uncertainties
+                on the data assigned to a single cluster
+        """
+        data = []
+
+        for i in range(self.Nclusters):
+            mask = self.assignments == i
+            print(i, np.sum(mask))
+            if np.sum(mask) > 0:
+                data.append(self.X[mask])
+
+        return data
+
+    @property
     def mus(self):
         """ mus
 
@@ -364,5 +389,5 @@ class EMGMM_cluster(object):
                         - np.linalg.slogdet(self.sigma)[1]/2
                         - np.sum((x-self.mu) * q, axis=1)/2)
         else:
-            log_prob = -np.inf
+            log_prob = np.zeros(x.shape[0]) - np.inf
         return log_prob
