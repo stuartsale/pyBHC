@@ -600,7 +600,7 @@ class noisy_rbhc_Node(object):
                 # set log_rk from the estimate given by self.sub_bhc
                 parent_node.set_rk(parent_node.sub_bhc.root_node.log_rk)
             elif parent_node.nk > 1:
-                parent_node.true_bhc = noisy_bhc(
+                parent_node.true_bhc = noisy_bhc.from_data(
                                              parent_node.data,
                                              parent_node.data_uncerts,
                                              parent_node.data_model,
@@ -648,7 +648,7 @@ class noisy_rbhc_Node(object):
                 print("TT", left_child.nk, right_child.nk)
 
             elif parent_node.nk > 1:             # just use the bhc tree
-                parent_node.true_bhc = noisy_bhc(
+                parent_node.true_bhc = noisy_bhc.from_data(
                                              parent_node.data,
                                              parent_node.data_uncerts,
                                              parent_node.data_model,
@@ -687,9 +687,9 @@ class noisy_rbhc_Node(object):
                                             sub_size, replace=False)
         sub_data = self.data[self.sub_indexes]
         sub_data_uncerts = self.data_uncerts[self.sub_indexes]
-        self.sub_bhc = noisy_bhc(sub_data, sub_data_uncerts,
-                                 self.data_model, self.crp_alpha,
-                                 verbose=False)
+        self.sub_bhc = noisy_bhc.from_data(sub_data, sub_data_uncerts,
+                                           self.data_model, self.crp_alpha,
+                                           verbose=False)
 
     def filter_data(self):
         """ filter_data()
@@ -732,21 +732,21 @@ class noisy_rbhc_Node(object):
                 if (self.sub_bhc.root_node.left_child.nk <=
                         self.sub_bhc.root_node.right_child.nk):
                     left_prob = self.sub_bhc.tree_posterior_predictive_prob(
-                                    self.sub_bhc.root_node.left_child, 
+                                    self.sub_bhc.root_node.left_child,
                                     self.data[ind], self.data_uncerts[ind])
 
                     right_prob = self.sub_bhc.tree_posterior_predictive_prob(
-                                    self.sub_bhc.root_node.right_child, 
+                                    self.sub_bhc.root_node.right_child,
                                     self.data[ind], self.data_uncerts[ind],
                                     target_prob=left_prob)
 
                 else:
                     right_prob = self.sub_bhc.tree_posterior_predictive_prob(
-                                    self.sub_bhc.root_node.right_child, 
+                                    self.sub_bhc.root_node.right_child,
                                     self.data[ind], self.data_uncerts[ind])
 
                     left_prob = self.sub_bhc.tree_posterior_predictive_prob(
-                                    self.sub_bhc.root_node.left_child, 
+                                    self.sub_bhc.root_node.left_child,
                                     self.data[ind], self.data_uncerts[ind],
                                     target_prob=right_prob)
 

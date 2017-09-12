@@ -30,50 +30,68 @@ class noisy_bhc(object):
     large for datasets of more than a few hundred points.
     """
 
-    def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
-                 verbose=False):
-        """
-        Init a bhc instance and perform the clustering.
-
-        Parameters
-        ----------
-        data : numpy.ndarray (n, d)
-            Array of data where each row is a data point and each
-            column is a dimension.
-        data_uncerts: numpy.ndarray (n, d, d)
-            Array of uncertainties on the data, such that the first
-            axis is a data point and the second two axes are for the
-            covariance matrix.
-        data_model : CollapsibleDistribution
-            Provides the approprite ``log_marginal_likelihood``
-            function for the data.
-        crp_alpha : float (0, Inf)
-            CRP concentration parameter.
-        verbose : bool, optional
-            Determibes whetrher info gets dumped to stdout.
-        """
-        self.data = data
-        self.data_uncerts = data_uncerts
+    def __init__(self, data_model, crp_alpha=1.0, verbose=False):
         self.data_model = data_model
         self.crp_alpha = crp_alpha
 
         self.verbose = verbose
 
-        # initialize the tree
-        nodes = dict((i, noisy_Node(np.array([x]),
-                                    np.array([data_uncerts[i]]),
-                                    data_model, crp_alpha, indexes=i))
-                     for i, x in enumerate(data))
-        n_nodes = len(nodes)
-        start_n_nodes = len(nodes)
-        assignment = [i for i in range(n_nodes)]
-        self.assignments = [list(assignment)]
-        rks = []
-
         # initialise the posterior & cavity GMMs
         self.post_GMMs = None
         self.global_GMM = None
         self.cavity_GMMs = None
+
+    def init_tree(self, data, data_uncerts):
+        """ init_tree()
+
+            Initialise a BHC tree
+
+            Parameters
+            ----------
+            data : numpy.ndarray (n, d)
+                Array of data where each row is a data point and each
+                column is a dimension.
+            data_uncerts: numpy.ndarray (n, d, d)
+                Array of uncertainties on the data, such that the first
+                axis is a data point and the second two axes are for the
+                covariance matrix.
+            Returns
+            -------
+            nodes : list(noisy_Node)
+                A list of nodes each of which contains a single datum
+        """
+        self.data = data
+        self.data_uncerts = data_uncerts
+
+        # initialize the tree
+        nodes = dict((i, noisy_Node(np.array([x]),
+                                    np.array([data_uncerts[i]]),
+                                    self.data_model, self.crp_alpha,
+                                    indexes=i))
+                     for i, x in enumerate(data))
+
+        return nodes
+
+    def cluster_nodes(self, nodes):
+        """ cluster_nodes()
+
+            Perform aglomorative BHC clustering on the nodes in
+            self.nodes
+
+            Parameters
+            ----------
+            nodes : list(noisy_Node)
+                A list of nodes to be merged
+
+            Returns
+            -------
+            None
+        """
+        n_nodes = len(nodes)
+        start_n_nodes = len(nodes)
+
+        assignment = [i for i in range(n_nodes)]
+        self.assignments = [list(assignment)]
 
         while n_nodes > 1:
             if self.verbose:
@@ -86,8 +104,7 @@ class noisy_bhc(object):
 
             # for each pair of clusters (nodes), compute the merger
             # score.
-            for left_idx, right_idx in it.combinations(nodes.keys(),
-                                                       2):
+            for left_idx, right_idx in it.combinations(nodes.keys(), 2):
                 tmp_node = noisy_Node.as_merge(nodes[left_idx],
                                                nodes[right_idx])
 
@@ -96,8 +113,6 @@ class noisy_bhc(object):
                     merged_node = tmp_node
                     merged_right = right_idx
                     merged_left = left_idx
-
-            rks.append(math.exp(max_rk))
 
             # Merge the highest-scoring pair
             del nodes[merged_right]
@@ -119,6 +134,36 @@ class noisy_bhc(object):
         # The denominator of log_rk is at the final merge is an
         # estimate of the marginal likelihood of the data under DPMM
         self.lml = self.root_node.log_ml
+
+    @classmethod
+    def from_data(cls, data, data_uncerts, data_model, crp_alpha=1.0,
+                  verbose=False):
+        """
+        Init a bhc instance and perform the clustering given some
+        unclustered data.
+
+        Parameters
+        ----------
+        data : numpy.ndarray (n, d)
+            Array of data where each row is a data point and each
+            column is a dimension.
+        data_uncerts: numpy.ndarray (n, d, d)
+            Array of uncertainties on the data, such that the first
+            axis is a data point and the second two axes are for the
+            covariance matrix.
+        data_model : CollapsibleDistribution
+            Provides the approprite ``log_marginal_likelihood``
+            function for the data.
+        crp_alpha : float (0, Inf)
+            CRP concentration parameter.
+        verbose : bool, optional
+            Determibes whetrher info gets dumped to stdout.
+        """
+        bhc = cls(data_model, crp_alpha, verbose)
+        nodes = bhc.init_tree(data, data_uncerts)
+        bhc.cluster_nodes(nodes)
+
+        return bhc
 
     def find_path(self, index):
         """ find_path(index)
@@ -504,7 +549,7 @@ class noisy_Node(object):
             self.indexes = indexes
 
         if log_dk is None:
-            self.log_dk = math.log(crp_alpha)
+            self.log_dk = math.log(crp_alpha) + math.lgamma(self.nk)
         else:
             self.log_dk = log_dk
 
