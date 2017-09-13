@@ -44,7 +44,8 @@ class noisy_bhc(object):
     def init_tree(self, data, data_uncerts):
         """ init_tree()
 
-            Initialise a BHC tree
+            Create the nodes from which a BHC tree can be built.
+            Each datum is initially assigned to its own node.
 
             Parameters
             ----------
@@ -63,12 +64,59 @@ class noisy_bhc(object):
         self.data = data
         self.data_uncerts = data_uncerts
 
-        # initialize the tree
+        # create nodes
         nodes = dict((i, noisy_Node(np.array([x]),
                                     np.array([data_uncerts[i]]),
                                     self.data_model, self.crp_alpha,
                                     indexes=i))
                      for i, x in enumerate(data))
+
+        self.assignments = [[i for i in range(n_nodes)]]
+
+        return nodes
+
+    def init_preclustered(self, data, data_uncerts):
+        """ init_preclustered(data, data_uncerts)
+
+            Create the nodes from which a BHC tree can be built.
+            The data have been pre-clustered so that each initial
+            node contains some non-zero number of data
+
+            Parameters
+            ----------
+            data : list(numpy.ndarray (n, d))
+                Array of data where each row is a data point and each
+                column is a dimension.
+            data_uncerts: list(numpy.ndarray (n, d, d))
+                Array of uncertainties on the data, such that the first
+                axis is a data point and the second two axes are for the
+                covariance matrix.
+            Returns
+            -------
+            nodes : list(noisy_Node)
+                A list of nodes each of which contains a single datum
+        """
+        # Assemble data into one big array
+        self.data = np.concatenate(data)
+        self.data_uncerts = np.concatenate(data_uncerts)
+
+        assignment_0 = []
+
+        for i in range(len(data)):
+            assignment_0 += [i]*data[i].shape[0]
+
+        self.assignments = [assignment_0[:]]
+
+        # create nodes
+
+        nodes = {}
+        start_ind = 0
+        for i in range(len(data)):
+            nodes[i] = noisy_Node(data[i], data_uncerts[i], self.data_model,
+                                  self.crp_alpha,
+                                  indexes=range(start_ind,
+                                                start_ind + data[i].shape[0]))
+            start_ind += data[i].shape[0]
 
         return nodes
 
@@ -90,8 +138,7 @@ class noisy_bhc(object):
         n_nodes = len(nodes)
         start_n_nodes = len(nodes)
 
-        assignment = [i for i in range(n_nodes)]
-        self.assignments = [list(assignment)]
+        assignment = self.assignments[0][:]
 
         while n_nodes > 1:
             if self.verbose:
@@ -160,7 +207,37 @@ class noisy_bhc(object):
             Determibes whetrher info gets dumped to stdout.
         """
         bhc = cls(data_model, crp_alpha, verbose)
-        nodes = bhc.init_tree(data, data_uncerts)
+        nodes = bhc.init_preclustered(data, data_uncerts)
+        bhc.cluster_nodes(nodes)
+
+        return bhc
+
+    @classmethod
+    def from_preclustered(cls, data, data_uncerts, data_model, crp_alpha=1.0,
+                          verbose=False):
+        """
+        Init a bhc instance and perform the clustering given some
+        unclustered data.
+
+        Parameters
+        ----------
+        data : list(numpy.ndarray (n, d))
+            Array of data where each row is a data point and each
+            column is a dimension.
+        data_uncerts: list(numpy.ndarray (n, d, d))
+            Array of uncertainties on the data, such that the first
+            axis is a data point and the second two axes are for the
+            covariance matrix.
+        data_model : CollapsibleDistribution
+            Provides the approprite ``log_marginal_likelihood``
+            function for the data.
+        crp_alpha : float (0, Inf)
+            CRP concentration parameter.
+        verbose : bool, optional
+            Determibes whetrher info gets dumped to stdout.
+        """
+        bhc = cls(data_model, crp_alpha, verbose)
+        nodes = bhc.init_preclustered(data, data_uncerts)
         bhc.cluster_nodes(nodes)
 
         return bhc
@@ -537,6 +614,7 @@ class noisy_Node(object):
 
         self.nk = data.shape[0]
         self.crp_alpha = crp_alpha
+        self.log_alpha = math.log(crp_alpha)
         self.log_pi = log_pi
         self.log_rk = log_rk
 
@@ -549,7 +627,19 @@ class noisy_Node(object):
             self.indexes = indexes
 
         if log_dk is None:
-            self.log_dk = math.log(crp_alpha) + math.lgamma(self.nk)
+            if self.nk == 1:
+                self.log_dk = math.log(crp_alpha)
+
+            else:
+                # approxation to d_{left}_k * d_{right}_k
+                log_d_tree = 0
+                for i in range(2, self.nk+1):
+                    log_d_tree = np.logaddexp(self.log_alpha + math.lgamma(i),
+                                              log_d_tree)
+
+                self.log_dk = np.logaddexp(self.log_alpha
+                                           + math.lgamma(self.nk),
+                                           log_d_tree)
         else:
             self.log_dk = log_dk
 
