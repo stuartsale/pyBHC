@@ -491,9 +491,10 @@ class noisy_bhc(object):
             for i in sorted(prev_nodes.keys()):
                 # If children exist
                 if prev_nodes[i].log_rk is not None:
-                    bhc_str += ("node : {0} size : {1} "
-                                "node_prob : {2:.5G} ({3:G} {4:G})\n".format(
+                    bhc_str += ("node : {0} size : {1} ({2}) "
+                                "node_prob : {3:.5G} ({4:G} {5:G})\n".format(
                                        i, prev_nodes[i].nk,
+                                       prev_nodes[i].data.shape[0],
                                        prev_nodes[i].prev_wk
                                        * math.exp(prev_nodes[i].log_rk),
                                        np.mean(prev_nodes[i].data, axis=0)[0],
@@ -503,9 +504,10 @@ class noisy_bhc(object):
 
                 # if leaf
                 else:
-                    bhc_str += ("node : {0} size : {1} "
-                                "node_prob : {2:.5G} ({3:G} {4:G})\n".format(
+                    bhc_str += ("node : {0} size : {1}({2}) "
+                                "node_prob : {3:.5G} ({4:G} {5:G})\n".format(
                                        i, prev_nodes[i].nk,
+                                       prev_nodes[i].data.shape[0],
                                        prev_nodes[i].prev_wk,
                                        prev_nodes[i].data[0, 0],
                                        prev_nodes[i].data[0, 1]))
@@ -566,7 +568,7 @@ class noisy_Node(object):
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
                  log_dk=None, log_pi=0.0, log_ml=None, logp=None,
-                 log_rk=None,  left_child=None, right_child=None, 
+                 log_rk=None,  left_child=None, right_child=None,
                  nk=1, indexes=None):
         """
         Parameters
