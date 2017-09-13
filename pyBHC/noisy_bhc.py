@@ -71,7 +71,7 @@ class noisy_bhc(object):
                                     indexes=i))
                      for i, x in enumerate(data))
 
-        self.assignments = [[i for i in range(n_nodes)]]
+        self.assignments = [[i for i in range(data.shape[0])]]
 
         return nodes
 
@@ -207,7 +207,7 @@ class noisy_bhc(object):
             Determibes whetrher info gets dumped to stdout.
         """
         bhc = cls(data_model, crp_alpha, verbose)
-        nodes = bhc.init_preclustered(data, data_uncerts)
+        nodes = bhc.init_tree(data, data_uncerts)
         bhc.cluster_nodes(nodes)
 
         return bhc
@@ -566,8 +566,8 @@ class noisy_Node(object):
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
                  log_dk=None, log_pi=0.0, log_ml=None, logp=None,
-                 log_rk=None,  left_child=None, right_child=None,
-                 indexes=None):
+                 log_rk=None,  left_child=None, right_child=None, 
+                 nk=1, indexes=None):
         """
         Parameters
         ----------
@@ -605,6 +605,11 @@ class noisy_Node(object):
             The right child of a merge. For nodes that are leaves
             (i.e. the original data points and not made by a merge)
             this is None.
+        nk : int, optional
+            The number of components that have gone into building the
+            cluster. Each component is normally an individual datum.
+            But if building from pre-clustered data, the base component
+            is instead these pre-clusters
         index : int, optional
             The index of the node in some indexing scheme.
         """
@@ -612,7 +617,7 @@ class noisy_Node(object):
         self.data = data
         self.data_uncerts = data_uncerts
 
-        self.nk = data.shape[0]
+        self.nk = nk
         self.crp_alpha = crp_alpha
         self.log_alpha = math.log(crp_alpha)
         self.log_pi = log_pi
@@ -675,7 +680,7 @@ class noisy_Node(object):
         indexes = node_left.indexes + node_right.indexes
         indexes.sort()
 
-        nk = data.shape[0]
+        nk = node_left.nk + node_right.nk
         log_dk = logaddexp(math.log(crp_alpha) + math.lgamma(nk),
                            node_left.log_dk + node_right.log_dk)
         log_pi = -math.log1p(math.exp(node_left.log_dk
@@ -698,7 +703,7 @@ class noisy_Node(object):
 
         return cls(data, data_uncerts, data_model, crp_alpha, log_dk,
                    log_pi, log_ml, logp, log_rk, node_left,
-                   node_right, indexes)
+                   node_right, nk, indexes)
 
     def get_node_params(self):
         self.params = self.data_model.update_parameters(
