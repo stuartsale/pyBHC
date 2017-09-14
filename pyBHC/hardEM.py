@@ -184,7 +184,7 @@ class hard_EM_GMM(object):
 
         for i in range(self.Nclusters):
             mask = self.assignments == i
-            print(i, np.sum(mask))
+
             if np.sum(mask) > 0:
                 data.append(self.X[mask])
 

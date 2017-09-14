@@ -12,3 +12,4 @@ from rbhc import rbhc
 from noisy_bhc import noisy_bhc
 from uncert_dists import uncert_NormalFixedCovar
 from noisy_rbhc import noisy_rbhc
+from noisy_embhc import noisy_EMBHC
