@@ -129,3 +129,7 @@ class noisy_EMBHC(object):
             return self.cluster_bhc.post_GMMs[self.assignments[index]]
         else:
             return None
+
+    @property
+    def root_node(self):
+        return self.cluster_bhc.root_node
