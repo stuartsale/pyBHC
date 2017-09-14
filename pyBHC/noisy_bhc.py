@@ -24,6 +24,11 @@ class noisy_bhc(object):
     lml : float
         An estimate of the log marginal likelihood of the model
         under a DPMM.
+    Nleaves : int
+        The number of initial  'leaf' nodes formed. If constructing
+        directly from data this is the same as the number of data
+        points. If building from preclustered data this is the
+        number of pre-clusters
     Notes
     -----
     The cost of BHC scales as O(n^2) and so becomes inpractically
@@ -63,6 +68,7 @@ class noisy_bhc(object):
         """
         self.data = data
         self.data_uncerts = data_uncerts
+        self.Nleaves = self.data.shape[0]
 
         # create nodes
         nodes = dict((i, noisy_Node(np.array([x]),
@@ -70,8 +76,6 @@ class noisy_bhc(object):
                                     self.data_model, self.crp_alpha,
                                     indexes=i))
                      for i, x in enumerate(data))
-
-        self.assignments = [[i for i in range(data.shape[0])]]
 
         return nodes
 
@@ -99,13 +103,7 @@ class noisy_bhc(object):
         # Assemble data into one big array
         self.data = np.concatenate(data)
         self.data_uncerts = np.concatenate(data_uncerts)
-
-        assignment_0 = []
-
-        for i in range(len(data)):
-            assignment_0 += [i]*data[i].shape[0]
-
-        self.assignments = [assignment_0[:]]
+        self.Nleaves = len(data)
 
         # create nodes
 
@@ -137,6 +135,8 @@ class noisy_bhc(object):
         """
         n_nodes = len(nodes)
         start_n_nodes = len(nodes)
+
+        self.assignments = [[i for i in range(self.Nleaves)]]
 
         assignment = self.assignments[0][:]
 
@@ -294,12 +294,12 @@ class noisy_bhc(object):
 
         # Traverse tree
 
-        self.add_node_posterior(self.root_node, self.global_GMM)
+        self.add_node_posterior(self.root_node, self.global_GMM, recurse=True)
 
         self.global_GMM.normalise_weights()
         self.global_GMM.set_mean_covar()
 
-    def add_node_posterior(self, node, GMM):
+    def add_node_posterior(self, node, GMM, recurse=False):
 
         if node.log_rk is not None:
             weight = node.prev_wk*math.exp(node.log_rk)
@@ -310,11 +310,12 @@ class noisy_bhc(object):
 
         GMM.add_component(weight, mu, sigma)
 
-        if node.left_child is not None:
-            self.add_node_posterior(node.left_child, GMM)
+        if recurse:
+            if node.left_child is not None:
+                self.add_node_posterior(node.left_child, GMM, recurse=True)
 
-        if node.right_child is not None:
-            self.add_node_posterior(node.right_child, GMM)
+            if node.right_child is not None:
+                self.add_node_posterior(node.right_child, GMM, recurse=True)
 
     def get_single_posteriors(self):
         """ get_single_posteriors()
@@ -328,7 +329,7 @@ class noisy_bhc(object):
 
         # get mixture models for each data point
 
-        for it in range(self.data.shape[0]):
+        for it in range(self.Nleaves):
             path = self.find_path(it)
 
             # initialise a GMM
@@ -336,11 +337,7 @@ class noisy_bhc(object):
 
             node = self.root_node
 
-            weight = node.prev_wk*math.exp(node.log_rk)
-            mu, sigma = node.data_model.single_posterior(
-                            self.data[it], self.data_uncerts[it],
-                            node.params)
-            post_GMM.add_component(weight, mu, sigma)
+            self.add_node_posterior(node, post_GMM, recurse=False)
 
             for direction in path:
                 if direction == "left":
@@ -348,16 +345,7 @@ class noisy_bhc(object):
                 elif direction == "right":
                     node = node.right_child
 
-                mu, sigma = node.data_model.single_posterior(
-                                self.data[it], self.data_uncerts[it],
-                                node.params)
-
-                if node.log_rk is not None:
-                    weight = node.prev_wk*math.exp(node.log_rk)
-                else:           # a leaf
-                    weight = node.prev_wk
-
-                post_GMM.add_component(weight, mu, sigma)
+                self.add_node_posterior(node, post_GMM, recurse=False)
 
             post_GMM.normalise_weights()
             post_GMM.set_mean_covar()
@@ -375,7 +363,7 @@ class noisy_bhc(object):
 
         # get mixture models for each data point
 
-        for it in range(self.data.shape[0]):
+        for it in range(self.Nleaves):
             path = self.find_path(it)
 
             # initialise a GMM
