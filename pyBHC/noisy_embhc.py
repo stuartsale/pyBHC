@@ -2,6 +2,7 @@ from __future__ import print_function, division
 import math
 import numpy as np
 
+import gmm
 from hardEM import hard_EM_GMM
 from noisy_bhc import noisy_bhc
 
@@ -93,6 +94,38 @@ class noisy_EMBHC(object):
                                 self.data_model, crp_alpha=self.crp_alpha,
                                 verbose=self.verbose)
 
+        self.assignments = np.zeros(self.data.shape[0], dtype=np.int) - 9
+        self.assignments[clean_mask] = self.EM_clusters.assignments
+
     def __str__(self):
         return str(self.cluster_bhc)
 
+    def get_individual_posterior(self, index):
+        """ get_individual_posterior(index)
+
+            Find the posteriors for a data point as a Gaussian
+            mixture, with each component in he mixture corresponding
+            to a node that the data point appears in.
+
+            Parameters
+            ----------
+            index : int
+                The index of the data point
+
+            Returns
+            -------
+            post_GMM : gmm.GMM
+                A Gaussian mixture model description of the posterior
+        """
+        # initialise a GMM
+        post_GMM = gmm.GMM()
+
+        # Check if posteriors have been found for cluster_bhc
+        if self.cluster_bhc.post_GMMs is None:
+            self.cluster_bhc.get_single_posteriors()
+
+        # get required posterior dist
+        if self.assignments[index] >= 0:
+            return self.cluster_bhc.post_GMMs[self.assignments[index]]
+        else:
+            return None
