@@ -6,7 +6,7 @@ import math
 from scipy import stats
 from scipy.special import gammaln, multigammaln
 
-from dists import CollapsibleDistribution
+from dists import CollapsibleDistribution, FrozenDistribution
 
 
 LOG2PI = math.log(2*math.pi)
@@ -141,9 +141,7 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
             point at which we want the posterior predictive prob.
 
             The posterior predictive distribution is a (multivariate)
-            t-distribution.
-            The formula required is given by
-            en.wikipedia.org/wiki/Conjugate_prior
+            Normal distribution.
 
             Parameters
             ----------
@@ -253,3 +251,84 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
         mu_cavity = cavity_params[0]
 
         return mu_cavity, sigma_cavity
+
+    def freeze_posterior_predictive(self, X_old, X_uncert_old):
+        """ freeze_posterior_predictive(X_old, X_uncert_old)
+
+            Dump a frozen version of the posterior predictive
+            distribution p(X_new | X_old)
+
+            Parameters
+            ----------
+            X_old : ndarray
+                The existing data on which the posterior predicitve
+                is to be conditioned.
+            X_uncert_old : ndarray
+                The uncertainty on the measurements of the existing
+                data.
+
+            Returns
+            -------
+            frozen_dist : FrozenNFCPosteriorPred
+                The frozen distribution
+        """
+        params_old = self.update_parameters(X_old, X_uncert_old,
+                                            self.mu_0, self.sigma_0,
+                                            self.S, self.d)
+
+        frozen_dist = FrozenNFCPosteriorPred(params_old[0],
+                                             params_old[1]+self.S)
+        return frozen_dist
+
+
+class FrozenNFCPosteriorPred(FrozenDistribution):
+    """ The log posterior predicitve distribution implied by a
+        uncert_NormalFixedCovar instance with its parameters
+        (i.e. mean, covariance) frozen.
+
+        Parameters
+        ----------
+        mu : ndarray
+            The mean of the distribution
+        sigma : ndarray
+            The (marginal) covariance of the distribution
+    """
+
+    def __init__(self, mu, sigma):
+        self.__mu = mu
+        self.__sigma = sigma
+        self.__d = float(len(self.__mu))
+
+        sgn, self.__det = np.linalg.slogdet(sigma)
+        if sgn <= 0:
+            raise AttributeError("Covariance matrix is not PSD")
+
+    def log_prob(self, X, X_uncert):
+        """ log_prob(X, X_uncert)
+
+            Returns the log-probability of a noisy datum (assumed
+            Gaussian) given this distribution.
+
+            Parameters
+            ----------
+            X : ndarray
+                The measurement
+            X_uncert : ndarray
+                The uncertainties on the measurment, expressed as a
+                covariance array
+
+            Returns
+            -------
+            log_prob : float
+                The log-probability of the datum given this
+                distribution
+        """
+        z_sigma = self.__sigma + X_uncert
+        z_sigma_inv = np.linalg.inv(z_sigma)
+
+        diff = X - self.__mu
+
+        z = np.dot(diff, np.dot(z_sigma_inv, diff))
+
+        log_prob = - self.__d*LOG2PI/2. - self.__det - z
+        return log_prob

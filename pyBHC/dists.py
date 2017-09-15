@@ -1,4 +1,5 @@
 from __future__ import print_function, division
+import abc
 import numpy as np
 
 
@@ -16,9 +17,21 @@ LOGPI = math.log(math.pi)
 class CollapsibleDistribution(object):
     """ Abstract base class for a family of conjugate distributions.
     """
+    __metaclass__ = abc.ABCMeta
 
-    def log_marginal_likelihood(self, X):
-        """ Log of the marginal likelihood, P(X|prior).  """
+    @abc.abstractmethod
+    def log_marginal_likelihood(self):
+        pass
+
+
+class FrozenDistribution(object):
+    """ Abstract base class for a probability distribution whose
+        parameters are fixed.
+    """
+    __metaclass__ = abc.ABCMeta
+
+    @abc.abstractmethod
+    def log_prob(self):
         pass
 
 
