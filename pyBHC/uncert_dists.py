@@ -303,8 +303,8 @@ class FrozenNFCPosteriorPred(FrozenDistribution):
         if sgn <= 0:
             raise AttributeError("Covariance matrix is not PSD")
 
-    def log_prob(self, X, X_uncert):
-        """ log_prob(X, X_uncert)
+    def __call__(self, X, X_uncert):
+        """ __call__(X, X_uncert)
 
             Returns the log-probability of a noisy datum (assumed
             Gaussian) given this distribution.
@@ -332,3 +332,14 @@ class FrozenNFCPosteriorPred(FrozenDistribution):
 
         log_prob = - self.__d*LOG2PI/2. - self.__det - z
         return log_prob
+
+    def __str__(self):
+        out_string = ("FrozenNFCPosteriorPred with \n"
+                      "mean : [")
+        for i in range(self.__mu.shape[0]):
+            out_string += "{0}".format(self.__mu[i])
+            if i+1 < self.__mu.shape[0]:
+                out_string += ", "
+        out_string += "]"
+
+        return out_string
