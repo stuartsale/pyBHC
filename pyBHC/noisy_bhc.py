@@ -306,7 +306,7 @@ class noisy_bhc(object):
         else:           # a leaf
             weight = node.prev_wk
         mu = node.params[0]
-        sigma = node.params[1]
+        sigma = node.params[1] + node.params[2]
 
         GMM.add_component(weight, mu, sigma)
 
