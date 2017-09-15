@@ -433,7 +433,8 @@ class noisy_rbhc(object):
 
     @property
     def root_node(self):
-        return nodes[0][0]
+        return self.nodes[0][0]
+
 
 class noisy_rbhc_Node(object):
     """ A node in the randomised Bayesian hierarchical clustering,
