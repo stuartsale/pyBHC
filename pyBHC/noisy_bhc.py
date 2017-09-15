@@ -291,31 +291,46 @@ class noisy_bhc(object):
         """
         # initialise a GMM
         self.global_GMM = gmm.GMM()
+        self.global_posterior_preds = []
 
         # Traverse tree
 
-        self.add_node_posterior(self.root_node, self.global_GMM, recurse=True)
+        self.add_node_posterior(self.root_node, self.global_GMM,
+                                self.global_posterior_preds, recurse=True)
 
         self.global_GMM.normalise_weights()
         self.global_GMM.set_mean_covar()
 
-    def add_node_posterior(self, node, GMM, recurse=False):
+    def add_node_posterior(self, node, GMM, posterior_preds=None,
+                           weight_mult=1., recurse=False):
 
         if node.log_rk is not None:
             weight = node.prev_wk*math.exp(node.log_rk)
         else:           # a leaf
             weight = node.prev_wk
+        weight *= weight_mult
         mu = node.params[0]
         sigma = node.params[1] + node.params[2]
 
         GMM.add_component(weight, mu, sigma)
 
+        if posterior_preds is not None:
+            posterior_preds.append(
+                node.data_model.freeze_posterior_predictive(node.data,
+                                                            node.data_uncerts))
+
         if recurse:
             if node.left_child is not None:
-                self.add_node_posterior(node.left_child, GMM, recurse=True)
+                self.add_node_posterior(node.left_child, GMM,
+                                        posterior_preds=posterior_preds,
+                                        weight_mult=weight_mult/2.,
+                                        recurse=True)
 
             if node.right_child is not None:
-                self.add_node_posterior(node.right_child, GMM, recurse=True)
+                self.add_node_posterior(node.right_child, GMM,
+                                        posterior_preds=posterior_preds,
+                                        weight_mult=weight_mult/2.,
+                                        recurse=True)
 
     def get_single_posteriors(self):
         """ get_single_posteriors()
