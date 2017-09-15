@@ -130,6 +130,18 @@ class noisy_EMBHC(object):
         else:
             return None
 
+    def get_global_posterior(self):
+        """ get_global_posteriors()
+
+            Find the posterior implied by the clustering as a Gaussian
+            mixture, with each component in he mixture corresponding
+            to a node in the clustering.
+
+        """
+        self.cluster_bhc.get_global_posterior()
+        return (self.cluster_bhc.global_GMM,
+                self.cluster_bhc.global_posterior_preds)
+
     @property
     def root_node(self):
         return self.cluster_bhc.root_node
