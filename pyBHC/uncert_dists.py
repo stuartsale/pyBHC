@@ -102,25 +102,32 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
         sign, detr = np.linalg.slogdet(_sigma)
         _sigma_inv = np.linalg.inv(_sigma)
 
-        log_z = detr/2 + np.sum(_mu*np.dot(_sigma_inv, _mu))/2
+        log_z = detr/2 + np.dot(_mu, np.dot(_sigma_inv, _mu))/2
 
         return log_z
 
     def log_marginal_likelihood(self, X, X_uncert, verbose=False):
         n = X.shape[0]
-        params_n = self.update_parameters(X, X_uncert, self.mu_0,
-                                          self.sigma_0, self.S,
-                                          self.d)
-        log_z_n = self.calc_log_z(*params_n)
+
+        sigma_sum = np.linalg.inv(self.sigma_0)
+        mu_sum = np.dot(np.linalg.inv(self.sigma_0), self.mu_0)
 
         Q = 0.
         log_det_prod = 0.
         for it in range(n):
-            uncert_inv = np.linalg.inv(X_uncert[it, :, :]+self.S)
-            sgn, minus_log_det = np.linalg.slogdet(uncert_inv)
+            inv_uncert = np.linalg.inv(X_uncert[it, :, :]+self.S)
+            sigma_sum += inv_uncert
+            weighted_mu = np.dot(inv_uncert, X[it, :])
+            mu_sum += weighted_mu
+
+            sgn, minus_log_det = np.linalg.slogdet(inv_uncert)
 
             log_det_prod -= minus_log_det
-            Q += np.sum(X[it, :]*np.dot(uncert_inv, X[it, :]))
+            Q += np.dot(X[it, :], weighted_mu)
+
+        sigma_n = np.linalg.inv(sigma_sum)
+        mu_n = np.dot(sigma_n, mu_sum)
+        log_z_n = self.calc_log_z(mu_n, sigma_n, self.S)
 
         lml = (log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q/2
                - log_det_prod/2)
