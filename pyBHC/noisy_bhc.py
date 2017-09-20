@@ -500,8 +500,8 @@ class noisy_bhc(object):
                                        prev_nodes[i].data.shape[0],
                                        prev_nodes[i].prev_wk
                                        * math.exp(prev_nodes[i].log_rk),
-                                       np.mean(prev_nodes[i].data, axis=0)[0],
-                                       np.mean(prev_nodes[i].data, axis=0)[1]))
+                                       prev_nodes[i].params[0][0],
+                                       prev_nodes[i].params[0][1]))
                     nodes[i*2] = prev_nodes[i].left_child
                     nodes[i*2+1] = prev_nodes[i].right_child
 
@@ -512,8 +512,8 @@ class noisy_bhc(object):
                                        i, prev_nodes[i].nk,
                                        prev_nodes[i].data.shape[0],
                                        prev_nodes[i].prev_wk,
-                                       prev_nodes[i].data[0, 0],
-                                       prev_nodes[i].data[0, 1]))
+                                       prev_nodes[i].params[0][0],
+                                       prev_nodes[i].params[0][1]))
 
             prev_nodes = nodes
 
