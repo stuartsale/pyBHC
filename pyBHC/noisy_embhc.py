@@ -1,5 +1,6 @@
 from __future__ import print_function, division
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 
 import gmm
@@ -52,7 +53,7 @@ class noisy_EMBHC(object):
     """
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
-                 Nclusters=50, verbose=False):
+                 Nclusters=50, verbose=False, plot_preclusters=False):
         self.data = data
         self.data_uncerts = data_uncerts
         self.data_model = data_model
@@ -87,6 +88,9 @@ class noisy_EMBHC(object):
             if np.sum(mask) > 0:
                 clustered_data.append(clean_data[mask])
                 clustered_data_uncerts.append(clean_data_uncerts[mask])
+
+        if plot_preclusters:
+            self.plot_clusters(clean_data, self.EM_clusters.assignments)
 
         # Put the clusters through BHC
         self.cluster_bhc = noisy_bhc.from_preclustered(
@@ -141,6 +145,35 @@ class noisy_EMBHC(object):
         self.cluster_bhc.get_global_posterior()
         return (self.cluster_bhc.global_GMM,
                 self.cluster_bhc.global_posterior_preds)
+
+    @classmethod
+    def plot_clusters(cls, data, assignments, filename=None):
+        """ plot_clusters(filename=None)
+
+            Plot the allocation of points to preclusters
+
+            Paramaters
+            ----------
+            filename : str, optional
+                A file to which the plot is saved
+            data : ndarray
+                The data to be plotted
+            assignments : ndarray
+                The assignemnts of the data points to clusters
+
+            Returns
+            -------
+            None
+        """
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+        ax.scatter(data[:, 0], data[:, 1], c=assignments, s=5, cmap='Paired')
+
+        if filename is None:
+            plt.show()
+        else:
+            fig.savefig(filename)
 
     @property
     def root_node(self):
