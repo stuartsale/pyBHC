@@ -167,7 +167,7 @@ class noisy_rbhc(object):
                         node.log_dk = self.crp_alpha
                         node.log_pi = 0.
                         node.logp = self.data_model.log_marginal_likelihood(
-                                                node.data, node.data_uncerts)
+                                            node.data, node.data_uncerts)[0]
                         node.log_ml = node.logp
                         node.log_rk = 0.
 
@@ -176,7 +176,7 @@ class noisy_rbhc(object):
                                    + math.lgamma(node.nk))
                     node.log_pi = 0.
                     node.logp = self.data_model.log_marginal_likelihood(
-                                                node.data, node.data_uncerts)
+                                            node.data, node.data_uncerts)[0]
                     node.log_ml = node.logp
                     node.log_rk = 0.
 
@@ -206,8 +206,8 @@ class noisy_rbhc(object):
                         neg_pi = math.log(-math.expm1(node.log_pi))
 
                     node.logp = self.data_model.log_marginal_likelihood(
-                                                            node.data,
-                                                            node.data_uncerts)
+                                                        node.data,
+                                                        node.data_uncerts)[0]
 
                     node.log_ml = np.logaddexp(node.log_pi+node.logp,
                                                neg_pi + left_child.log_ml
