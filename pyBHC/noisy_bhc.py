@@ -29,6 +29,8 @@ class noisy_bhc(object):
         directly from data this is the same as the number of data
         points. If building from preclustered data this is the
         number of pre-clusters
+    Ndata : int
+        The total number of data points
     Notes
     -----
     The cost of BHC scales as O(n^2) and so becomes inpractically
@@ -69,6 +71,7 @@ class noisy_bhc(object):
         self.data = data
         self.data_uncerts = data_uncerts
         self.Nleaves = self.data.shape[0]
+        self.Ndata = self.data.shape[0]
 
         # create nodes
         nodes = dict((i, noisy_Node(np.array([x]),
@@ -104,6 +107,7 @@ class noisy_bhc(object):
         self.data = np.concatenate(data)
         self.data_uncerts = np.concatenate(data_uncerts)
         self.Nleaves = len(data)
+        self.Ndata = self.data.shape[0]
 
         # create nodes
 
@@ -305,9 +309,10 @@ class noisy_bhc(object):
                            weight_mult=1., recurse=False):
 
         if node.log_rk is not None:
-            weight = node.prev_wk*math.exp(node.log_rk)
+            weight = (node.prev_wk * math.exp(node.log_rk)
+                      * node.data.shape[0]/self.Ndata)
         else:           # a leaf
-            weight = node.prev_wk
+            weight = node.prev_wk * node.data.shape[0]/self.Ndata
         weight *= weight_mult
         mu = node.params[0]
         sigma = node.params[1] + node.params[2]
@@ -323,13 +328,13 @@ class noisy_bhc(object):
             if node.left_child is not None:
                 self.add_node_posterior(node.left_child, GMM,
                                         posterior_preds=posterior_preds,
-                                        weight_mult=weight_mult/2.,
+                                        weight_mult=weight_mult,
                                         recurse=True)
 
             if node.right_child is not None:
                 self.add_node_posterior(node.right_child, GMM,
                                         posterior_preds=posterior_preds,
-                                        weight_mult=weight_mult/2.,
+                                        weight_mult=weight_mult,
                                         recurse=True)
 
     def get_single_posteriors(self):
