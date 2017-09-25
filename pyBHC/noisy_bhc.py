@@ -571,7 +571,7 @@ class noisy_Node(object):
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
                  log_dk=None, log_pi=0.0, log_ml=None, logp=None,
-                 log_rk=None,  left_child=None, right_child=None,
+                 sum_dict=None, log_rk=None, left_child=None, right_child=None,
                  nk=1, indexes=None):
         """
         Parameters
@@ -598,6 +598,9 @@ class noisy_Node(object):
             The log marginal likelihood for the particular cluster
             represented by the node. Given by eqn 1 of Heller &
             Ghahramani (2005).
+        sum_dict : dict
+            A dictionary of various summations that are used to speed
+            up the calculation of logp
         log_rk : float
             The probability of the merged hypothesis for the node.
             Given by eqn 3 of Heller & Ghahrimani (2005). Do not
@@ -653,12 +656,13 @@ class noisy_Node(object):
         else:
             self.log_dk = log_dk
 
-        if logp is None:    # i.e. for a leaf
-            self.logp = self.data_model.\
-                            log_marginal_likelihood(self.data,
-                                                    self.data_uncerts)
+        if logp is None or sum_dict is None:    # i.e. for a leaf
+            (self.logp, self.sum_dict) = self.data_model.\
+                                         log_marginal_likelihood(
+                                                self.data, self.data_uncerts)
         else:
             self.logp = logp
+            self.sum_dict = sum_dict
 
         if log_ml is None:  # i.e. for a leaf
             self.log_ml = self.logp
@@ -693,9 +697,18 @@ class noisy_Node(object):
                                       - math.log(crp_alpha)
                                       - math.lgamma(nk)))
 
+        # combine sum_dicts
+
+        sum_dict = {}
+        for key in node_left.sum_dict:
+            if key in node_right.sum_dict:
+                sum_dict[key] = (node_left.sum_dict[key]
+                                 + node_right.sum_dict[key])
+
         # Calculate log_rk - the log probability of the merge
 
-        logp = data_model.log_marginal_likelihood(data, data_uncerts)
+        logp, sum_dict = data_model.log_marginal_likelihood(data, data_uncerts,
+                                                            **sum_dict)
         numer = log_pi + logp
 
         neg_pi = math.log(-math.expm1(log_pi))
@@ -707,7 +720,7 @@ class noisy_Node(object):
             raise RuntimeError('Precision error')
 
         return cls(data, data_uncerts, data_model, crp_alpha, log_dk,
-                   log_pi, log_ml, logp, log_rk, node_left,
+                   log_pi, log_ml, logp, sum_dict, log_rk, node_left,
                    node_right, nk, indexes)
 
     def get_node_params(self):

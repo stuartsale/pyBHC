@@ -106,37 +106,46 @@ class uncert_NormalFixedCovar(CollapsibleDistribution):
 
         return log_z
 
-    def log_marginal_likelihood(self, X, X_uncert, verbose=False):
+    def log_marginal_likelihood(self, X, X_uncert, mu_sum=None, sigma_sum=None,
+                                log_det_prod=None, Q=None, verbose=False):
         n = X.shape[0]
 
-        sigma_sum = np.linalg.inv(self.sigma_0)
-        mu_sum = np.dot(np.linalg.inv(self.sigma_0), self.mu_0)
+        if (mu_sum is None or sigma_sum is None or log_det_prod is None
+                or Q is None):
 
-        Q = 0.
-        log_det_prod = 0.
-        for it in range(n):
-            inv_uncert = np.linalg.inv(X_uncert[it, :, :]+self.S)
-            sigma_sum += inv_uncert
-            weighted_mu = np.dot(inv_uncert, X[it, :])
-            mu_sum += weighted_mu
+            sigma_sum = np.zeros(self.sigma_0.shape)
+            mu_sum = np.zeros(self.mu_0.shape)
 
-            sgn, minus_log_det = np.linalg.slogdet(inv_uncert)
+            Q = 0.
+            log_det_prod = 0.
+            for it in range(n):
+                inv_uncert = np.linalg.inv(X_uncert[it, :, :]+self.S)
+                sigma_sum += inv_uncert
+                weighted_mu = np.dot(inv_uncert, X[it, :])
+                mu_sum += weighted_mu
 
-            log_det_prod -= minus_log_det
-            Q += np.dot(X[it, :], weighted_mu)
+                sgn, minus_log_det = np.linalg.slogdet(inv_uncert)
 
-        sigma_n = np.linalg.inv(sigma_sum)
-        mu_n = np.dot(sigma_n, mu_sum)
+                log_det_prod -= minus_log_det
+                Q += np.dot(X[it, :], weighted_mu)
+
+        mu_sum += np.dot(self.sigma_0_inv, self.mu_0)
+
+        sigma_n = np.linalg.inv(sigma_sum + self.sigma_0_inv)
+        mu_n = np.dot(sigma_n, mu_sum + np.dot(self.sigma_0_inv, self.mu_0))
         log_z_n = self.calc_log_z(mu_n, sigma_n, self.S)
 
         lml = (log_z_n - self.log_z0 - LOG2PI*(n*self.d/2) - Q/2
                - log_det_prod/2)
 
+        sums_dict = {"mu_sum": mu_sum, "sigma_sum": sigma_sum,
+                     "log_det_prod": log_det_prod, "Q": Q}
+
         if verbose:
             print(lml, log_z_n, -Q, -log_det_prod/2, log_z_n-self.log_z0,
                   params_n[1])
 
-        return lml
+        return lml, sums_dict
 
     def log_posterior_predictive(self, X_new, X_uncert_new,
                                  X_old, X_uncert_old):
