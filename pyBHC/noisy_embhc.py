@@ -2,6 +2,8 @@ from __future__ import print_function, division
 import math
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.cluster import MiniBatchKMeans
+
 
 import gmm
 from hardEM import hard_EM_GMM
@@ -38,13 +40,19 @@ class noisy_EMBHC(object):
         data_model : CollapsibleDistribution
             Provides the approprite ``log_marginal_likelihood``
             function for the data.
-        crp_alpha : float (0, Inf)
+        crp_alpha : float (0, Inf), optional
             CRP concentration parameter.
-        Nclusters : int
-            The number of EM clusters formed
-        verbose : bool
+        Nclusters : int, optional
+            The number of pre-clusters formed
+        precluster_method : str, optional
+            Method by which the preclustering is performed, options
+            are 'hardEM' or 'kmeans'
+        verbose : bool, optional
             If true various bits of information, possibly with
             diagnostic uses, will be printed.
+        plot_preclusters : bool, optional
+            If True make a plot showing the preclustering of the
+            data
 
         Notes
         -----
@@ -53,7 +61,8 @@ class noisy_EMBHC(object):
     """
 
     def __init__(self, data, data_uncerts, data_model, crp_alpha=1.0,
-                 Nclusters=50, verbose=False, plot_preclusters=False):
+                 Nclusters=50, precluster_method="hardEM", verbose=False,
+                 plot_preclusters=False, **kwargs):
         self.data = data
         self.data_uncerts = data_uncerts
         self.data_model = data_model
@@ -74,23 +83,33 @@ class noisy_EMBHC(object):
         clean_data_uncerts = self.data_uncerts[clean_mask]
         transformed_data = np.dot(clean_data - mean_datum, uncert_L_inv)
 
-        # form the EM clusters
-        self.EM_clusters = hard_EM_GMM.init_fit(transformed_data,
-                                                self.Nclusters, 20)
+        # form the pre-clusters
+        if precluster_method == "hardEM":
+            self.EM_clusters = hard_EM_GMM.init_fit(transformed_data,
+                                                    self.Nclusters, 20)
+            pre_assignments = self.EM_clusters.assignments
+
+        elif precluster_method == "kmeans":
+            self.kmeans = MiniBatchKMeans(n_clusters=self.Nclusters)
+            pre_assignments = self.kmeans.fit_predict(transformed_data)
+
+        else:
+            raise AttributeError("precluster_method {0} not recognised".
+                                 format(precluster_method))
 
         # segregate the data according to cluster assignments
         clustered_data = []
         clustered_data_uncerts = []
 
-        for i in range(self.EM_clusters.Nclusters):
-            mask = self.EM_clusters.assignments == i
+        for i in range(self.Nclusters):
+            mask = pre_assignments == i
 
             if np.sum(mask) > 0:
                 clustered_data.append(clean_data[mask])
                 clustered_data_uncerts.append(clean_data_uncerts[mask])
 
         if plot_preclusters:
-            self.plot_clusters(clean_data, self.EM_clusters.assignments)
+            self.plot_clusters(clean_data, pre_assignments)
 
         # Put the clusters through BHC
         self.cluster_bhc = noisy_bhc.from_preclustered(
@@ -99,7 +118,7 @@ class noisy_EMBHC(object):
                                 verbose=self.verbose)
 
         self.assignments = np.zeros(self.data.shape[0], dtype=np.int) - 9
-        self.assignments[clean_mask] = self.EM_clusters.assignments
+        self.assignments[clean_mask] = pre_assignments
 
     def __str__(self):
         return str(self.cluster_bhc)
